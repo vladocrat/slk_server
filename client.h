@@ -2,13 +2,17 @@
 
 #include "utils/utils.h"
 
+class QTcpSocket;
+
 namespace slk {
 
 class Client
 {
 public:
-    Client();
+    Client(QTcpSocket* pendingConnection);
     ~Client();
+    
+    const QTcpSocket* tcpConnection() const noexcept;
     
 private:
     DECLARE_PIMPL_EX(Client);
