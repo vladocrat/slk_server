@@ -50,6 +50,7 @@ void sendError(QTcpSocket* client, Messages::MessageType type, Args... arg)
     auto payload = writeToByteArray(std::forward<Args...>(arg...));
     msg.payload = *payload;
     send(client, msg);
+    delete payload;
 }
 
 }
@@ -133,6 +134,7 @@ Server::Server()
                     msg.payload = *payload;
                     
                     send(client, msg);
+                    delete payload;
                 });
                 
                 break;
