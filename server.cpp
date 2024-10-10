@@ -15,23 +15,21 @@
 
 namespace slk {
 
-using ParsingResult = std::pair<Messages::MessageType, QDataStream*>;
-
 namespace
 {
 
-ParsingResult getMessageType(const QByteArray& data)
+void send(QTcpSocket* client, const MessageParser::Message& msg) noexcept
 {
-    QDataStream stream(data);
-    uint32_t size;
     QByteArray payload;
-    stream >> size;
-    stream >> payload;
     
-    QDataStream payloadStream(payload);
-    Messages::MessageType type;
-    payloadStream >> type;
-    return std::make_pair(type, &payloadStream);
+    {
+        QDataStream msgStream(&payload, QIODevice::WriteOnly);
+        msgStream << msg;
+    }
+    
+    QDataStream clientStream(client);
+    clientStream << sizeof(msg) << payload;
+    client->flush(); //! TODO remove for packet optimization;
 }
 
 }
@@ -66,30 +64,19 @@ Server::Server()
         {
             //! TODO change to read it correctly (tcp packets)
             auto data = newClient->readAll();
-            QDataStream stream(data);
-            uint32_t size;
-            QByteArray payload;
-            stream >> size;
-            stream >> payload;
-            
-            QDataStream payloadStream(payload);
-            Messages::MessageType type;
-            payloadStream >> type;
+            const auto [type, stream] = MessageParser::parse(data);
             
             switch (type)
             {
             case Messages::MessageType::PING:
+            {
                 MessageParser::Message msg;
                 msg.type = Messages::MessageType::PING;
                 msg.payload = {};
-                
-                QByteArray payload;
-                QDataStream msgStream(&payload, QIODevice::WriteOnly);
-                msgStream << msg.type << msg.payload;
-                
-                QDataStream clientStream(newClient);
-                clientStream << sizeof(msg) << payload;
-                newClient->flush();
+                send(newClient, msg);
+                break;
+            }
+            case Messages::MessageType::CONNECT_TO_ROOM:
                 break;
             }
         });

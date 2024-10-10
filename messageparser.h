@@ -10,15 +10,19 @@ namespace slk
 class MessageParser
 {
 public:
+    using ParsingResult = std::pair<Messages::MessageType, std::weak_ptr<QDataStream>>;
+    
     struct Message
     {
         Messages::MessageType type;
         QByteArray payload;
+        
+        friend QDataStream& operator<<(QDataStream& out, const Message& msg);
     };
     
     MessageParser();
     
-    static Message parse(const QByteArray& data) noexcept;
+    static ParsingResult parse(const QByteArray& data) noexcept;
 };
 
 } //! slk

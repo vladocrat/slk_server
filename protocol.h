@@ -8,7 +8,8 @@ namespace Messages
 
 enum class MessageType
 {
-    PING
+    PING,
+    CONNECT_TO_ROOM
 };
 
 
