@@ -30,7 +30,7 @@ void send(QTcpSocket* client, std::unique_ptr<QByteArray>&& data)
     client->flush(); //! TODO remove for packet optimization;
 }
 
-}
+} //! Utils namespace
 
 struct Server::impl_t
 {
@@ -49,7 +49,7 @@ Server::Server()
         
         QObject::connect(newClient, &QTcpSocket::disconnected, this, [this, newClient]()
         {
-            const auto it = std::find(impl().pendingClients.begin(), impl().pendingClients.end(), newClient);
+            const auto it = std::ranges::find(impl().pendingClients, newClient);
             
             if (it != impl().pendingClients.end())
             {

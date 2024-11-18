@@ -64,7 +64,7 @@ void Room::addNewClient(QTcpSocket* newClient) noexcept
 
 bool Room::clientExists(const std::shared_ptr<Client>& client) const noexcept
 {
-    return std::find_if(impl().clients.begin(), impl().clients.end(), [first = std::move(client)](const auto& second) {
+    return std::ranges::find_if(impl().clients, [first = std::move(client)](const auto& second) {
         return first->tcpConnection() ==  second->tcpConnection();
     }) != impl().clients.end();
 }
