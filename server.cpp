@@ -4,6 +4,7 @@
 #include <QUdpSocket>
 #include <QDataStream>
 #include <QUuid>
+#include <QDebug>
 
 #include <vector>
 #include <algorithm>
@@ -11,46 +12,22 @@
 #include "room.h"
 #include "protocol.h"
 #include "messageparser.h"
+#include "message.h"
+#include "messagefactory.h"
 
-#include <QDebug>
 
 namespace slk {
 
 namespace
 {
 
-template<class... Args>
-std::unique_ptr<QByteArray> writeToByteArray(Args... arg)
+void send(QTcpSocket* client, std::unique_ptr<QByteArray>&& data)
 {
-    auto array = std::make_unique<QByteArray>();
-    QDataStream stream(&(*array), QIODevice::WriteOnly);
-    
-    ((stream << arg), ...);
-    return std::move(array);
-}
+    Q_ASSERT(client);
 
-void send(QTcpSocket* client, const MessageParser::Message& msg) noexcept
-{
-    if (!client) return;
-    
-    auto payload = writeToByteArray(msg);
-    
     QDataStream clientStream(client);
-    clientStream << sizeof(msg) << *payload;
+    clientStream << sizeof(data.get()) << *data.get();
     client->flush(); //! TODO remove for packet optimization;
-}
-
-template<class... Args>
-void sendError(QTcpSocket* client, Messages::MessageType type, Args... arg)
-{
-    if (!client) return;
-    
-    MessageParser::Message msg;
-    msg.type = type;
-    
-    auto payload = writeToByteArray(std::forward<Args...>(arg...));
-    msg.payload = *payload;
-    send(client, msg);
 }
 
 }
@@ -85,27 +62,19 @@ Server::Server()
         {
             //! TODO change to read it correctly (tcp packets)
             auto data = newClient->readAll();
-            const auto [type, stream] = MessageParser::parse(data);
+            auto [type, stream] = MessageParser::parseCommand(data);
             
             switch (type)
             {
             case Messages::MessageType::PING:
             {
-                MessageParser::Message msg;
-                msg.type = Messages::MessageType::PING;
-                msg.payload = {};
-                send(newClient, msg);
+                send(newClient, MessageFactory::create(Messages::MessageType::PING));
                 break;
             }
             case Messages::MessageType::CONNECT_TO_ROOM:
             {
-                QByteArray id;
-                *stream >> id;
-                QDataStream stream(id);
-                QByteArray roomIdContainer;
-                stream >> roomIdContainer;
-                QUuid roomId(roomIdContainer);
-                qDebug() << id;
+                QUuid roomId;
+                MessageParser::parseData(stream, std::tie(roomId));
                 qDebug() << roomId;
                 
                 const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
@@ -115,7 +84,7 @@ Server::Server()
                 
                 if (it == impl().rooms.end())
                 {
-                    sendError(newClient, Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId);
+                    send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId));
                     break;
                 }
                 
@@ -127,46 +96,34 @@ Server::Server()
             {
                 //! TODO check from DB that the room with such name doesn't exist
                 QString name;
-                *stream >> name;
+                MessageParser::parseData(std::move(stream), std::tie(name));
 
                 const auto found = std::ranges::find_if(impl().rooms, [&name](const auto& room) {
                     return room->name() == name;
                 }) != impl().rooms.end();
 
                 if (found) {
-                    MessageParser::Message msg;
-                    msg.type = Messages::MessageType::FAILED_TO_CREATE_ROOM;
-                    auto payload = writeToByteArray(QString("Room already exists"));
-                    msg.payload = *payload;
-
-                    qDebug() << msg.payload;
-
-                    send(newClient, msg);
+                    send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CREATE_ROOM, QString("Room already exists")));
                     break;
                 }
 
-                qDebug() << "Create room with name: " << name;
+                qDebug() << "Created room with name: " << name;
                 
                 const auto room = std::make_shared<Room>();
                 room->setName(name);
                 impl().rooms.push_back(room);
 
-                MessageParser::Message msg;
-                msg.type = Messages::MessageType::ROOM_CREATED;
-                msg.payload = *writeToByteArray(room->id().toByteArray());
-                qDebug() << msg.payload;
-
                 QObject::connect(room.get(), &Room::clientAdded, this, []() {
 
                 });
 
-                send(newClient, msg);
-
+                send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id().toByteArray()));
                 break;
             }
             case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:
             case Messages::MessageType::ROOM_CREATED:
             case Messages::MessageType::FAILED_TO_CREATE_ROOM:
+            case Messages::MessageType::CONNECTED_TO_ROOM:
                 break;
             }
         });
