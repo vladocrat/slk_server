@@ -5,6 +5,7 @@
 #include "utils/utils.h"
 
 class QTcpSocket;
+class QUuid;
 
 namespace slk {
 
@@ -17,7 +18,7 @@ public:
     Room();
     ~Room();
     
-    uint64_t id() const noexcept;
+    QUuid id() const noexcept;
     QString name() const noexcept;
     void setName(const QString& name) noexcept;
     

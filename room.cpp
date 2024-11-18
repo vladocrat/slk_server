@@ -1,6 +1,8 @@
 #include "room.h"
 
 #include <QString>
+#include <QUuid>
+#include <QDebug>
 
 #include <vector>
 
@@ -10,7 +12,7 @@ namespace slk {
 
 struct Room::impl_t
 {
-    uint64_t id;
+    QUuid id;
     QString name;
     std::vector<std::shared_ptr<Client>> clients;
 };
@@ -18,6 +20,8 @@ struct Room::impl_t
 Room::Room()
 {
     createImpl();
+    impl().id = QUuid::createUuid();
+    qDebug() << "new room: " << impl().id;
 }
 
 Room::~Room()
@@ -25,7 +29,7 @@ Room::~Room()
     
 }
 
-uint64_t Room::id() const noexcept
+QUuid Room::id() const noexcept
 {
     return impl().id;
 }

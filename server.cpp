@@ -3,6 +3,7 @@
 #include <QTcpSocket>
 #include <QUdpSocket>
 #include <QDataStream>
+#include <QUuid>
 
 #include <vector>
 #include <algorithm>
@@ -98,10 +99,11 @@ Server::Server()
             }
             case Messages::MessageType::CONNECT_TO_ROOM:
             {
-                uint64_t roomId;
-                *stream >> roomId;
+                QString id;
+                *stream >> id;
+                QUuid roomId(id);
                 
-                const auto it = std::find_if(impl().rooms.begin(), impl().rooms.end(), [roomId](const auto& room)
+                const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
                 {
                     return room->id() == roomId;
                 });
@@ -120,21 +122,36 @@ Server::Server()
                 //! TODO check from DB that the room with such name doesn't exist
                 QString name;
                 *stream >> name;
+
+                const auto found = std::ranges::find_if(impl().rooms, [&name](const auto& room) {
+                    return room->name() == name;
+                }) != impl().rooms.end();
+
+                if (found) {
+                    MessageParser::Message msg;
+                    msg.type = Messages::MessageType::FAILED_TO_CREATE_ROOM;
+                    auto payload = writeToByteArray(QString("Room already exists"));
+                    msg.payload = *payload;
+
+                    qDebug() << msg.payload;
+
+                    send(newClient, msg);
+                    break;
+                }
+
+                qDebug() << "Create room with name: " << name;
                 
                 const auto room = std::make_shared<Room>();
                 room->setName(name);
                 impl().rooms.push_back(room);
-                
-                QObject::connect(room.get(), &Room::clientAdded, this, [&room](QTcpSocket* client)
-                {
-                    MessageParser::Message msg;
-                    msg.type = Messages::MessageType::ROOM_CREATED;
-                    auto payload = writeToByteArray(room->id());
-                    msg.payload = *payload;
-                    
-                    send(client, msg);
-                });
-                
+
+                MessageParser::Message msg;
+                msg.type = Messages::MessageType::ROOM_CREATED;
+                msg.payload = *writeToByteArray(room->id().toByteArray());
+                qDebug() << msg.payload;
+
+                send(newClient, msg);
+
                 break;
             }
             case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:

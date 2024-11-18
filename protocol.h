@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 namespace slk
 {
 
 namespace Messages
 {
 
-enum class MessageType
+enum class MessageType : uint8_t
 {
     PING, //! Simple ping command
     
