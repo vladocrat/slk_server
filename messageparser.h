@@ -10,7 +10,7 @@ namespace slk
 class MessageParser
 {
 public:
-    using ParsingResult = std::pair<Messages::MessageType, std::weak_ptr<QDataStream>>;
+    using ParsingResult = std::pair<Messages::MessageType, std::unique_ptr<QDataStream>>;
     
     struct Message
     {

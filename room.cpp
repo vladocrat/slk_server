@@ -12,7 +12,7 @@ struct Room::impl_t
 {
     uint64_t id;
     QString name;
-    std::vector<Client> clients;
+    std::vector<std::shared_ptr<Client>> clients;
 };
 
 Room::Room()
@@ -46,7 +46,7 @@ void Room::addNewClient(QTcpSocket* newClient) noexcept
 {
     if (!newClient) return;
     
-    Client client(newClient);
+   auto client = std::make_shared<Client>(newClient);
     
     if (clientExists(client))
     {
@@ -54,13 +54,15 @@ void Room::addNewClient(QTcpSocket* newClient) noexcept
         return;
     }
 
-    impl().clients.push_back(client);
+    impl().clients.push_back(std::move(client));
     emit clientAdded(newClient);
 }
 
-bool Room::clientExists(const Client& client) const noexcept
+bool Room::clientExists(const std::shared_ptr<Client>& client) const noexcept
 {
-    return std::find(impl().clients.begin(), impl().clients.end(), client) != impl().clients.end();
+    return std::find_if(impl().clients.begin(), impl().clients.end(), [first = std::move(client)](const auto& second) {
+        return first->tcpConnection() ==  second->tcpConnection();
+    }) != impl().clients.end();
 }
 
 } //! slk

@@ -10,10 +10,11 @@ class Client
 {
 public:
     Client(QTcpSocket* pendingConnection);
+    Client(Client&& client);
     ~Client();
     
     const QTcpSocket* tcpConnection() const noexcept;
-    
+        
 private:
     DECLARE_PIMPL_EX(Client);
 };

@@ -25,8 +25,15 @@ Client::Client(QTcpSocket* pendingConnection)
         while (impl().udpConnection->hasPendingDatagrams())
         {
             const auto datagram = impl().udpConnection->receiveDatagram();
+            qDebug() << datagram.data();
         }
     });
+}
+
+Client::Client(Client&& client)
+{
+    createImpl();
+    std::exchange(impl(), client.impl());
 }
 
 Client::~Client()

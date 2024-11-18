@@ -19,13 +19,13 @@ namespace
 {
 
 template<class... Args>
-QByteArray* writeToByteArray(Args... arg)
+std::unique_ptr<QByteArray> writeToByteArray(Args... arg)
 {
-    QByteArray* array;
-    QDataStream stream(array, QIODevice::WriteOnly);
+    auto array = std::make_unique<QByteArray>();
+    QDataStream stream(&(*array), QIODevice::WriteOnly);
     
     ((stream << arg), ...);
-    return array;
+    return std::move(array);
 }
 
 void send(QTcpSocket* client, const MessageParser::Message& msg) noexcept
@@ -50,7 +50,6 @@ void sendError(QTcpSocket* client, Messages::MessageType type, Args... arg)
     auto payload = writeToByteArray(std::forward<Args...>(arg...));
     msg.payload = *payload;
     send(client, msg);
-    delete payload;
 }
 
 }
@@ -58,7 +57,7 @@ void sendError(QTcpSocket* client, Messages::MessageType type, Args... arg)
 struct Server::impl_t
 {
     std::vector<QTcpSocket*> pendingClients;
-    std::vector<Room> rooms;
+    std::vector<std::shared_ptr<Room>> rooms;
 };
 
 Server::Server()
@@ -100,11 +99,11 @@ Server::Server()
             case Messages::MessageType::CONNECT_TO_ROOM:
             {
                 uint64_t roomId;
-                (*stream.lock()) >> roomId;
+                *stream >> roomId;
                 
-                const auto it = std::find_if(impl().rooms.begin(), impl().rooms.end(), [roomId](const Room& room)
+                const auto it = std::find_if(impl().rooms.begin(), impl().rooms.end(), [roomId](const auto& room)
                 {
-                    return room.id() == roomId;
+                    return room->id() == roomId;
                 });
                 
                 if (it != impl().rooms.end())
@@ -112,7 +111,7 @@ Server::Server()
                     sendError(newClient, Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId);
                 }
                 
-                it->addNewClient(newClient);
+                (*it)->addNewClient(newClient);
                 
                 break;
             }
@@ -120,21 +119,20 @@ Server::Server()
             {
                 //! TODO check from DB that the room with such name doesn't exist
                 QString name;
-                (*stream.lock()) >> name;
+                *stream >> name;
                 
-                Room room;
-                room.setName(name);
+                const auto room = std::make_shared<Room>();
+                room->setName(name);
                 impl().rooms.push_back(room);
                 
-                QObject::connect(&room, &Room::clientAdded, this, [&room](QTcpSocket* client)
+                QObject::connect(room.get(), &Room::clientAdded, this, [&room](QTcpSocket* client)
                 {
                     MessageParser::Message msg;
                     msg.type = Messages::MessageType::ROOM_CREATED;
-                    auto payload = writeToByteArray(room.id());
+                    auto payload = writeToByteArray(room->id());
                     msg.payload = *payload;
                     
                     send(client, msg);
-                    delete payload;
                 });
                 
                 break;

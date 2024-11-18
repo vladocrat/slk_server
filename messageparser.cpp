@@ -15,10 +15,10 @@ MessageParser::ParsingResult MessageParser::parse(const QByteArray& data) noexce
     stream >> size;
     stream >> payload;
     
-    auto payloadStream = std::make_shared<QDataStream>(payload);
+    auto payloadStream = std::make_unique<QDataStream>(payload);
     Messages::MessageType type;
     *payloadStream.get() >> type;
-    return std::make_pair(type, payloadStream);
+    return std::make_pair(type, std::move(payloadStream));
 }
 
 QDataStream& operator<<(QDataStream& out, const MessageParser::Message& msg)
