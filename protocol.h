@@ -17,7 +17,8 @@ enum class MessageType : uint8_t
     FAILED_TO_CREATE_ROOM, //! Response, failed to create room (name, reason)
     
     CONNECT_TO_ROOM, //! Request to connect to room (Room_id)
-    FAILED_TO_CONNECT_TO_ROOM //! Response, Incorrect room id (Room_id)
+    FAILED_TO_CONNECT_TO_ROOM, //! Response, Incorrect room id (Room_id)
+    CONNECTED_TO_ROOM, //! Response, Connected to room successfully ()
 };
 
 } //! Messages

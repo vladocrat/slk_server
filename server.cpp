@@ -99,18 +99,24 @@ Server::Server()
             }
             case Messages::MessageType::CONNECT_TO_ROOM:
             {
-                QString id;
+                QByteArray id;
                 *stream >> id;
-                QUuid roomId(id);
+                QDataStream stream(id);
+                QByteArray roomIdContainer;
+                stream >> roomIdContainer;
+                QUuid roomId(roomIdContainer);
+                qDebug() << id;
+                qDebug() << roomId;
                 
                 const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
                 {
                     return room->id() == roomId;
                 });
                 
-                if (it != impl().rooms.end())
+                if (it == impl().rooms.end())
                 {
                     sendError(newClient, Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId);
+                    break;
                 }
                 
                 (*it)->addNewClient(newClient);
@@ -149,6 +155,10 @@ Server::Server()
                 msg.type = Messages::MessageType::ROOM_CREATED;
                 msg.payload = *writeToByteArray(room->id().toByteArray());
                 qDebug() << msg.payload;
+
+                QObject::connect(room.get(), &Room::clientAdded, this, []() {
+
+                });
 
                 send(newClient, msg);
 
