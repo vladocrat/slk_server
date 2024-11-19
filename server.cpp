@@ -26,7 +26,7 @@ void send(QTcpSocket* client, std::unique_ptr<QByteArray>&& data)
     Q_ASSERT(client);
 
     QDataStream clientStream(client);
-    clientStream << sizeof(data.get()) << *data.get();
+    clientStream << static_cast<uint64_t>(data->size()) << *data.get();
     client->flush(); //! TODO remove for packet optimization;
 }
 
@@ -114,8 +114,7 @@ Server::Server()
                 impl().rooms.push_back(room);
 
                 QObject::connect(room.get(), &Room::clientAdded, this, [](QTcpSocket* client, const QHostAddress& address, const uint32_t port) {
-                    qDebug() << "sending: " << address.toString() << " " << port;
-                    send(client, MessageFactory::create(Messages::MessageType::CONNECTED_TO_ROOM, port));
+                    send(client, MessageFactory::create(Messages::MessageType::CONNECTED_TO_ROOM, address, port));
                 });
 
                 send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id()));

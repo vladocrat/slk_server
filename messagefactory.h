@@ -4,8 +4,10 @@
 #include <QDataStream>
 #include <QIODevice>
 #include <QUuid>
+#include <QDebug>
 
 #include <memory>
+#include <qhostaddress.h>
 
 #include "message.h"
 #include "protocol.h"
@@ -72,14 +74,15 @@ public:
             return std::move(writeToByteArray(msg));
         }
         case Messages::MessageType::CONNECT_TO_ROOM:
-            [[fallthrough]];
+            break;
         case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:
-            [[fallthrough]];
+            break;
         case Messages::MessageType::CONNECTED_TO_ROOM:
         {
             Message msg;
             msg.type = Messages::MessageType::CONNECTED_TO_ROOM;
             msg.payload = *writeToByteArray(args...);
+            qDebug() << msg.payload;
             return std::move(writeToByteArray(msg));
         }
         case Messages::MessageType::SEND_VOICE_MSG:

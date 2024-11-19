@@ -3,6 +3,7 @@
 #include <QString>
 #include <QUuid>
 #include <QDebug>
+#include <QTcpSocket>
 
 #include <vector>
 
@@ -60,13 +61,24 @@ void Room::addNewClient(QTcpSocket* newClient) noexcept
 
     const auto [address, port] = client->udpSettings();
     impl().clients.push_back(client);
+
+    QObject::connect(client->tcpConnection(), &QTcpSocket::disconnected, this, [this, client]() {
+        const auto [first, last] = std::ranges::remove_if(impl().clients, [&first = client](const auto& second) {
+            return first->tcpConnection() == second->tcpConnection();
+        });
+
+        qDebug() << "client dissconnected";
+        impl().clients.erase(first, last);
+        qDebug() << "room size: " << impl().clients.size();
+    });
+
     qDebug() << address << " " << port;
     emit clientAdded(newClient, address, port);
 }
 
 bool Room::clientExists(const std::shared_ptr<Client>& client) const noexcept
 {
-    return std::ranges::find_if(impl().clients, [first = std::move(client)](const auto& second) {
+    return std::ranges::find_if(impl().clients, [&first = client](const auto& second) {
         return first->tcpConnection() ==  second->tcpConnection();
     }) != impl().clients.end();
 }

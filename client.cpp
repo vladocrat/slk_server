@@ -32,7 +32,7 @@ Client::Client(QTcpSocket* pendingConnection)
         }
     });
 
-    if (!impl().udpConnection->bind(QHostAddress::LocalHost, 61585))
+    if (!impl().udpConnection->bind(QHostAddress::LocalHost))
     {
         qDebug() << "failed to bind";
         return;
@@ -49,17 +49,8 @@ Client::Client(Client&& client)
 
 Client::~Client()
 {
-    if (impl().tcpConnection)
-    {
-        impl().tcpConnection->close();
-        impl().tcpConnection->deleteLater();
-    }
-    
-    if (impl().udpConnection)
-    {
-        impl().udpConnection->close();
-        impl().udpConnection->deleteLater();
-    }
+    impl().tcpConnection->deleteLater();
+    impl().udpConnection->deleteLater();
 }
 
 const QTcpSocket* Client::tcpConnection() const noexcept
