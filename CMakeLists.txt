@@ -22,9 +22,8 @@ add_executable(VoIP_server
   messageparser.h messageparser.cpp
   messagefactory.h messagefactory.cpp
   message.h message.cpp
-
-
 )
+
 target_link_libraries(VoIP_server Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network)
 
 include(GNUInstallDirs)

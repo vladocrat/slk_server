@@ -19,6 +19,8 @@ enum class MessageType : uint8_t
     CONNECT_TO_ROOM, //! Request to connect to room (Room_id)
     FAILED_TO_CONNECT_TO_ROOM, //! Response, Incorrect room id (Room_id)
     CONNECTED_TO_ROOM, //! Response, Connected to room successfully ()
+
+    SEND_VOICE_MSG, //! Request and Response, voice data (slk::Device::Data)
 };
 
 } //! Messages

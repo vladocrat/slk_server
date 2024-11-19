@@ -58,8 +58,10 @@ void Room::addNewClient(QTcpSocket* newClient) noexcept
         return;
     }
 
-    impl().clients.push_back(std::move(client));
-    emit clientAdded(newClient);
+    const auto [address, port] = client->udpSettings();
+    impl().clients.push_back(client);
+    qDebug() << address << " " << port;
+    emit clientAdded(newClient, address, port);
 }
 
 bool Room::clientExists(const std::shared_ptr<Client>& client) const noexcept

@@ -113,13 +113,15 @@ Server::Server()
                 room->setName(name);
                 impl().rooms.push_back(room);
 
-                QObject::connect(room.get(), &Room::clientAdded, this, []() {
-
+                QObject::connect(room.get(), &Room::clientAdded, this, [](QTcpSocket* client, const QHostAddress& address, const uint32_t port) {
+                    qDebug() << "sending: " << address.toString() << " " << port;
+                    send(client, MessageFactory::create(Messages::MessageType::CONNECTED_TO_ROOM, port));
                 });
 
-                send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id().toByteArray()));
+                send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id()));
                 break;
             }
+            case Messages::MessageType::SEND_VOICE_MSG:
             case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:
             case Messages::MessageType::ROOM_CREATED:
             case Messages::MessageType::FAILED_TO_CREATE_ROOM:

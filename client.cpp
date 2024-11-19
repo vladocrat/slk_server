@@ -20,14 +20,25 @@ Client::Client(QTcpSocket* pendingConnection)
     
     impl().tcpConnection = pendingConnection;
     impl().udpConnection = new QUdpSocket;
-    
-    QObject::connect(impl().udpConnection, &QUdpSocket::readyRead, impl().udpConnection, [this]() {
+
+    QObject::connect(impl().udpConnection, &QUdpSocket::readyRead, this, [this]() {
         while (impl().udpConnection->hasPendingDatagrams())
         {
             const auto datagram = impl().udpConnection->receiveDatagram();
-            qDebug() << datagram.data();
+            QNetworkDatagram response;
+            response.setData(datagram.data());
+            response.setDestination(datagram.senderAddress(), datagram.senderPort());
+            impl().udpConnection->writeDatagram(response);
         }
     });
+
+    if (!impl().udpConnection->bind(QHostAddress::LocalHost, 61585))
+    {
+        qDebug() << "failed to bind";
+        return;
+    }
+
+    qDebug() << "Binded!";
 }
 
 Client::Client(Client&& client)
@@ -54,6 +65,11 @@ Client::~Client()
 const QTcpSocket* Client::tcpConnection() const noexcept
 {
     return impl().tcpConnection;
+}
+
+Client::UdpSettings Client::udpSettings() const noexcept
+{
+    return std::make_pair(impl().udpConnection->localAddress(),impl().udpConnection->localPort());
 }
 
 } //! slk

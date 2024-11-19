@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QDataStream>
 #include <QIODevice>
+#include <QUuid>
 
 #include <memory>
 
@@ -25,6 +26,11 @@ std::unique_ptr<QByteArray> writeToByteArray(Args... arg)
 std::unique_ptr<QByteArray> writeToByteArray(const QString& str)
 {
     return std::make_unique<QByteArray>(str.toUtf8());
+}
+
+std::unique_ptr<QByteArray> writeToByteArray(const QUuid& id)
+{
+    return std::make_unique<QByteArray>(id.toRfc4122());
 }
 
 }
@@ -70,6 +76,13 @@ public:
         case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:
             [[fallthrough]];
         case Messages::MessageType::CONNECTED_TO_ROOM:
+        {
+            Message msg;
+            msg.type = Messages::MessageType::CONNECTED_TO_ROOM;
+            msg.payload = *writeToByteArray(args...);
+            return std::move(writeToByteArray(msg));
+        }
+        case Messages::MessageType::SEND_VOICE_MSG:
             break;
         }
 

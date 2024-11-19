@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QHostAddress>
 
 #include "utils/utils.h"
 
@@ -26,7 +27,7 @@ public:
     
 signals:
     void clientAlreadyExists(QTcpSocket*);
-    void clientAdded(QTcpSocket*);
+    void clientAdded(QTcpSocket*, const QHostAddress& address, const uint32_t port);
     
 private:
     bool clientExists(const std::shared_ptr<Client>& client) const noexcept;
