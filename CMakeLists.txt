@@ -9,7 +9,12 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(PostgreSQL REQUIRED)
+
 add_subdirectory(utils)
+add_subdirectory(libpqxx)
+
+include_directories(libpqxx)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Network)
 
@@ -24,7 +29,7 @@ add_executable(VoIP_server
   message.h message.cpp
 )
 
-target_link_libraries(VoIP_server Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network)
+target_link_libraries(VoIP_server Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network libpqxx)
 
 include(GNUInstallDirs)
 install(TARGETS VoIP_server
