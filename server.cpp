@@ -68,7 +68,7 @@ Server::Server()
             {
             case Messages::MessageType::PING:
             {
-                send(newClient, MessageFactory::create(Messages::MessageType::PING));
+                send(newClient, MessageFactory::create(Messages::MessageType::PING, QByteArray{}));
                 break;
             }
             case Messages::MessageType::CONNECT_TO_ROOM:
