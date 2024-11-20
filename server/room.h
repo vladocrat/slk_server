@@ -3,7 +3,7 @@
 #include <QObject>
 #include <QHostAddress>
 
-#include "utils/utils.h"
+#include "utils.h"
 
 class QTcpSocket;
 class QUuid;
