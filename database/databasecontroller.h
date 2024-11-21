@@ -13,9 +13,13 @@ public:
     DatabaseController();
     ~DatabaseController();
 
+    int getValue();
     bool connect();
     bool connect(const DatabaseSettings& settings);
     bool close();
+
+private:
+    void prepareAllStatements();
 
 private:
     DECLARE_PIMPL

@@ -1,10 +1,6 @@
 #include "database.h"
 
-#include <pqxx/pqxx>
-
-#include <format>
 #include <memory>
-#include <iostream>
 
 namespace
 {
@@ -51,7 +47,8 @@ bool Database::connect(const DatabaseSettings& settings)
         const auto connectionString = getConnectionString(settings);
         impl().connection = std::make_unique<pqxx::connection>(connectionString);
     } catch (const std::exception &e) {
-        std::cerr << e.what();
+        std::cerr << e.what() << std::endl;
+        return false;
     }
 
     return impl().connection->is_open();
@@ -64,6 +61,18 @@ bool Database::close()
     }
 
     return impl().connection->is_open();
+}
+
+void Database::prepare(const std::string& name, const std::string& statement)
+{
+    assert(impl().connection);
+
+    impl().connection->prepare(name, statement);
+}
+
+const std::unique_ptr<pqxx::connection>& Database::connection() const
+{
+    return impl().connection;
 }
 
 } //! slk

@@ -56,6 +56,7 @@ Server::Server()
     });
 
     qDebug() << "Connection to DB established succesfully";
+    qDebug() << impl().dbController.getValue();
 
     QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]()
     {
