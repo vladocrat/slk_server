@@ -22,10 +22,11 @@ struct DatabaseSettings
     std::string dbName;
     std::string user;
     bool requireSsl;
+    std::string password;
 
     auto tie() const
     {
-        return std::tie(host, hostAddr, port, dbName, user, requireSsl);
+        return std::tie(host, hostAddr, port, dbName, user, requireSsl, password);
     };
 };
 

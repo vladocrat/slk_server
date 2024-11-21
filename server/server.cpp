@@ -50,6 +50,13 @@ Server::Server()
         QCoreApplication::exit(-1);
     }
 
+    QObject::connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
+        bool ok = !impl().dbController.close();
+        qDebug() << (ok ? "connection closed" : "failed to close connection");
+    });
+
+    qDebug() << "Connection to DB established succesfully";
+
     QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]()
     {
         const auto newClient = nextPendingConnection();

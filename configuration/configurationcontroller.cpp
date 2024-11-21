@@ -26,6 +26,7 @@ DatabaseSettings ConfigurationController::getDBSettings()
     dbSettings.dbName = settings.value("dbName", "").toString().toStdString();
     dbSettings.user = settings.value("user", "").toString().toStdString();
     dbSettings.requireSsl = settings.value("requireSsl", false).toBool();
+    dbSettings.password = settings.value("password", "").toString().toStdString();
 
     settings.endGroup();
 

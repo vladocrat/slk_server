@@ -1,6 +1,6 @@
 #include "databasecontroller.h"
 
-#include <pqxx/pqxx>
+#include "database.h"
 
 namespace slk
 {
@@ -8,6 +8,7 @@ namespace slk
 struct DatabaseController::impl_t
 {
     DatabaseSettings currentSettings;
+    Database db;
 };
 
 DatabaseController::DatabaseController(const DatabaseSettings& settings)
@@ -19,7 +20,7 @@ DatabaseController::DatabaseController(const DatabaseSettings& settings)
 
 DatabaseController::DatabaseController()
 {
-
+    createImpl();
 }
 
 DatabaseController::~DatabaseController()
@@ -34,7 +35,13 @@ bool DatabaseController::connect()
 
 bool DatabaseController::connect(const DatabaseSettings& settings)
 {
-    return {};
+    impl().currentSettings = settings;
+    return impl().db.connect(settings);
+}
+
+bool DatabaseController::close()
+{
+    return impl().db.close();
 }
 
 } //! slk

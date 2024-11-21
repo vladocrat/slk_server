@@ -15,6 +15,7 @@ public:
 
     bool connect();
     bool connect(const DatabaseSettings& settings);
+    bool close();
 
 private:
     DECLARE_PIMPL
