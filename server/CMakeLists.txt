@@ -14,7 +14,5 @@ add_library(server
     messagefactory.h messagefactory.cpp
     message.h message.cpp)
 
-message(${CMAKE_SOURCE_DIR}/utils)
-
 target_link_libraries(server PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network)
 target_include_directories(server PUBLIC ${CMAKE_SOURCE_DIR}/utils)

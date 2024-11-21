@@ -1,3 +1,5 @@
+dbhost.ini
+
 build/
 # C++ objects and libs
 *.slo
