@@ -1,13 +1,14 @@
 #pragma once
 
 #include "databasesettings.h"
-#include "utils.h"
+#include "pimpl.h"
 
 namespace slk
 {
 
 class DatabaseController final
 {
+public:
     DatabaseController(const DatabaseSettings& settings);
     DatabaseController();
     ~DatabaseController();

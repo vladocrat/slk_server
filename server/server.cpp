@@ -5,6 +5,7 @@
 #include <QDataStream>
 #include <QUuid>
 #include <QDebug>
+#include <QCoreApplication>
 
 #include <vector>
 #include <algorithm>
@@ -14,7 +15,8 @@
 #include "messageparser.h"
 #include "message.h"
 #include "messagefactory.h"
-
+#include "configurationcontroller.h"
+#include "databasecontroller.h"
 
 namespace slk {
 
@@ -36,12 +38,18 @@ struct Server::impl_t
 {
     std::vector<QTcpSocket*> pendingClients;
     std::vector<std::shared_ptr<Room>> rooms;
+    DatabaseController dbController;
 };
 
 Server::Server()
 {
     createImpl();
     
+    if (!impl().dbController.connect(ConfigurationController::getDBSettings())) {
+        qDebug() << "failed to connect to DB";
+        QCoreApplication::exit(-1);
+    }
+
     QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]()
     {
         const auto newClient = nextPendingConnection();
