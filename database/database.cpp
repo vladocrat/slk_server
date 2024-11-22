@@ -1,6 +1,7 @@
 #include "database.h"
 
 #include <memory>
+#include <iostream>
 
 namespace
 {
@@ -74,5 +75,6 @@ const std::unique_ptr<pqxx::connection>& Database::connection() const
 {
     return impl().connection;
 }
+
 
 } //! slk

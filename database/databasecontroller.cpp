@@ -42,8 +42,14 @@ DatabaseController::~DatabaseController()
 
 int DatabaseController::getValue()
 {
-    int id;
-    impl().db.execute(statemets["ALL_USERS"], std::tie(id));
+    int id {};
+    std::vector<std::tuple<int>> res;
+    impl().db.execute(statemets["ALL_USERS"], res);
+
+    std::ranges::for_each(res, [&id](const auto& tuple) {
+        id = std::get<0>(tuple);
+    });
+
     return id;
 }
 
