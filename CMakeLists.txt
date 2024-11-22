@@ -10,6 +10,7 @@ add_subdirectory(utils)
 add_subdirectory(database)
 add_subdirectory(server)
 add_subdirectory(configuration)
+add_subdirectory(tests)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Network)
 
@@ -21,6 +22,7 @@ target_link_libraries(VoIP_server PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VER
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(COPY "dbhost.ini" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    file(COPY "dbhost.ini" DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/tests)
 endif()
 
 include(GNUInstallDirs)

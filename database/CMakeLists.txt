@@ -3,7 +3,9 @@ find_package(PostgreSQL REQUIRED)
 add_library(database
     databasecontroller.h databasecontroller.cpp
     databasesettings.h databasesettings.cpp
-    database.h database.cpp)
+    database.h database.cpp
+    userdata.h userdata.cpp
+    validators.h validators.cpp)
 
 set(COMPILE_GENERATED ${libpqxx_BINARY_DIR}/include)
 

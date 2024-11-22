@@ -80,18 +80,39 @@ void Database::prepare(const std::string& name, const std::string& statement)
 {
     assert(impl().connection);
 
-    impl().connection->prepare(name, statement);
+    try {
+        impl().connection->prepare(name, statement);
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return;
+    }
 }
 
-
-template<class... ReturnFields, class... Params>
-bool Database::execute(const std::string& query, std::vector<std::tuple<ReturnFields...>>& returnRows, const Params&... params)
+bool Database::executePrepared(const std::string& query)
 {
     try {
         pqxx::work worker(*impl().connection);
 
-        const auto result = sizeof...(Params) > 0 ? worker.exec_params(query, params...)
-                                                  : worker.exec(query);
+        const auto result = worker.exec_prepared(query);
+
+        worker.commit();
+
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+
+template<class... ReturnFields, class... Params>
+bool Database::executePrepared(const std::string& query, std::vector<std::tuple<ReturnFields...>>& returnRows, const Params&... params)
+{
+    try {
+        pqxx::work worker(*impl().connection);
+
+        const auto result = worker.exec_prepared(query, params...);
 
         worker.commit();
 
@@ -108,6 +129,25 @@ bool Database::execute(const std::string& query, std::vector<std::tuple<ReturnFi
     return true;
 }
 
-template bool Database::execute<int>(const std::string&, std::vector<std::tuple<int>>&);
+template<class... Params>
+bool Database::executePrepared(const std::string& query, const Params&... params)
+{
+    try {
+        pqxx::work worker(*impl().connection);
+
+        const auto result = worker.exec_prepared(query, params...);
+
+        worker.commit();
+
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+template bool Database::executePrepared(const std::string&, const std::string&, const std::string&, const std::string&);
+template bool Database::executePrepared(const std::string&, std::vector<std::tuple<std::string, std::string, std::string>>&, const std::string&);
 
 } //! slk

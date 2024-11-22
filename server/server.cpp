@@ -17,6 +17,8 @@
 #include "messagefactory.h"
 #include "configurationcontroller.h"
 #include "databasecontroller.h"
+#include "userdata.h"
+#include "hash.h"
 
 namespace slk {
 
@@ -56,7 +58,6 @@ Server::Server()
     });
 
     qDebug() << "Connection to DB established succesfully";
-    qDebug() << impl().dbController.getValue();
 
     QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]()
     {

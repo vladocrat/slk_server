@@ -1,10 +1,14 @@
 #pragma once
 
+#include <optional>
+
 #include "databasesettings.h"
 #include "pimpl.h"
 
 namespace slk
 {
+
+class UserData;
 
 class DatabaseController final
 {
@@ -13,7 +17,12 @@ public:
     DatabaseController();
     ~DatabaseController();
 
-    int getValue();
+    bool logIn(const UserData& userData);
+    bool registerUser(const UserData& userData);
+    bool userExists(const UserData&);
+    std::optional<UserData> getUserByUsername(const std::string& username);
+    std::optional<UserData> getUserByEmail(const std::string& email);
+
     bool connect();
     bool connect(const DatabaseSettings& settings);
     bool close();

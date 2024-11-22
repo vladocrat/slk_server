@@ -4,13 +4,19 @@
 #include <unordered_map>
 
 #include "database.h"
+#include "userdata.h"
+#include "validators.h"
 
 namespace
 {
 
 static std::unordered_map<std::string, std::string> statemets = {
-    {"ALL_USERS", "SELECT * FROM \"mytable\""},
+    {"ADD_USER", "INSERT INTO public.\"Users\" (username, password_hash, mail) VALUES ($1, $2, $3);"},
+    {"GET_USER_BY_USERNAME", "SELECT * FROM public.\"Users\" WHERE username = $1;"},
+    {"GET_USER_BY_EMAIL", "SELECT * FROM public.\"Users\" WHERE mail = $1;"}
 };
+
+static const constexpr uint8_t MINIMUM_CHARACTER_REQUIRMENT = 3;
 
 } //! Utils namespace
 
@@ -40,17 +46,103 @@ DatabaseController::~DatabaseController()
 
 }
 
-int DatabaseController::getValue()
+bool DatabaseController::logIn(const UserData& userData)
 {
-    int id {};
-    std::vector<std::tuple<int>> res;
-    impl().db.execute(statemets["ALL_USERS"], res);
+    UserData DBUserData;
 
-    std::ranges::for_each(res, [&id](const auto& tuple) {
-        id = std::get<0>(tuple);
-    });
+    if (userData.mail.empty()) {
+        const auto res = getUserByUsername(userData.username);
 
-    return id;
+        if (!res) {
+            return false;
+        }
+
+        DBUserData = res.value();
+    } else {
+        EmailValidatior validator;
+        if (!validator(userData.mail)) {
+            return false;
+        }
+
+        const auto res = getUserByEmail(userData.mail);
+
+        if (!res) {
+            return false;
+        }
+
+        DBUserData = res.value();
+    }
+
+    if (userData.password_hash != getUserByUsername(userData.username)->password_hash) {
+        return false;
+    }
+
+    return true;
+}
+
+bool DatabaseController::registerUser(const UserData& userData)
+{
+    EmailValidatior validator;
+    if (!validator(userData.mail)) {
+        return false;
+    }
+
+    if (userData.username.empty() || userData.mail.empty() || userData.password_hash.empty()) {
+        return false;
+    }
+
+    if (userData.username.size() < MINIMUM_CHARACTER_REQUIRMENT) {
+        return false;
+    }
+
+    if (userExists(userData)) {
+        return false;
+    }
+
+    return impl().db.executePrepared("ADD_USER", userData.username, userData.password_hash, userData.mail);
+}
+
+bool DatabaseController::userExists(const UserData& userData)
+{
+    return getUserByUsername(userData.username).has_value() || getUserByEmail(userData.mail).has_value();
+}
+
+std::optional<UserData> DatabaseController::getUserByUsername(const std::string& username)
+{
+    std::vector<std::tuple<std::string, std::string, std::string>> userDataCont;
+    impl().db.executePrepared("GET_USER_BY_USERNAME", userDataCont, username);
+
+    if (userDataCont.size() > 1 || userDataCont.empty()) {
+        return std::nullopt;
+    }
+
+    const auto& userData = userDataCont[0];
+
+    UserData user;
+    user.username = std::get<0>(userData);
+    user.password_hash = std::get<1>(userData);
+    user.mail = std::get<2>(userData);
+
+    return std::make_optional(user);
+}
+
+std::optional<UserData> DatabaseController::getUserByEmail(const std::string& email)
+{
+    std::vector<std::tuple<std::string, std::string, std::string>> userDataCont;
+    impl().db.executePrepared("GET_USER_BY_EMAIL", userDataCont, email);
+
+    if (userDataCont.size() > 1 || userDataCont.empty()) {
+        return std::nullopt;
+    }
+
+    const auto& userData = userDataCont[0];
+
+    UserData user;
+    user.username = std::get<0>(userData);
+    user.password_hash = std::get<1>(userData);
+    user.mail = std::get<2>(userData);
+
+    return std::make_optional(user);
 }
 
 bool DatabaseController::connect()
