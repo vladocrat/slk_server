@@ -48,3 +48,12 @@ void UsersTest::userLogIn()
 
     QVERIFY(m_controller.logIn(data));
 }
+
+void UsersTest::userIdByUsername()
+{
+    const std::string username = "test";
+    const auto res = m_controller.getUserIdByUsername(username);
+
+    QVERIFY(res);
+    QVERIFY(res.value() == 2);
+}

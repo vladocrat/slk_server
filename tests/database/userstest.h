@@ -14,6 +14,7 @@ private slots:
    void userByEmail();
    void userByUsername();
    void userLogIn();
+   void userIdByUsername();
 
 private:
    slk::DatabaseController m_controller;

@@ -10,10 +10,15 @@
 namespace
 {
 
-static std::unordered_map<std::string, std::string> statemets = {
+static const std::unordered_map<std::string, std::string> userStatemets = {
     {"ADD_USER", "INSERT INTO public.\"Users\" (username, password_hash, mail) VALUES ($1, $2, $3);"},
     {"GET_USER_BY_USERNAME", "SELECT * FROM public.\"Users\" WHERE username = $1;"},
-    {"GET_USER_BY_EMAIL", "SELECT * FROM public.\"Users\" WHERE mail = $1;"}
+    {"GET_USER_BY_EMAIL", "SELECT * FROM public.\"Users\" WHERE mail = $1;"},
+    {"GET_USER_ID", "SELECT id FROM public.\"Users\" WHERE username = $1;"}
+};
+
+static const std::unordered_map<std::string, std::string> roomStatements = {
+    {"ADD_ROOM", "INSERT INTO public.\"Rooms\" (name, GUID) VALUES ($1, $2);"}
 };
 
 static const constexpr uint8_t MINIMUM_CHARACTER_REQUIRMENT = 3;
@@ -107,6 +112,29 @@ bool DatabaseController::userExists(const UserData& userData)
     return getUserByUsername(userData.username).has_value() || getUserByEmail(userData.mail).has_value();
 }
 
+std::optional<uint32_t> DatabaseController::getUserIdByUsername(const std::string& username)
+{
+    if (username.empty()) {
+        return std::nullopt;
+    }
+
+    std::vector<std::tuple<uint32_t>> ret;
+
+    const auto ok = impl().db.executePrepared("GET_USER_ID", ret, username);
+
+    if (!ok) {
+        return std::nullopt;
+    }
+
+    if (ret.empty()) {
+        return std::nullopt;
+    }
+
+    const auto id = std::get<0>(ret[0]);
+
+    return std::make_optional(id);
+}
+
 std::optional<UserData> DatabaseController::getUserByUsername(const std::string& username)
 {
     std::vector<std::tuple<std::string, std::string, std::string>> userDataCont;
@@ -145,6 +173,11 @@ std::optional<UserData> DatabaseController::getUserByEmail(const std::string& em
     return std::make_optional(user);
 }
 
+bool DatabaseController::createRoom(const uint32_t creatorId, const std::string& name, const std::string& GUID)
+{
+    return false;
+}
+
 bool DatabaseController::connect()
 {
     return connect(impl().currentSettings);
@@ -170,9 +203,12 @@ bool DatabaseController::close()
 
 void DatabaseController::prepareAllStatements()
 {
-    std::ranges::for_each(statemets, [this](const auto& pair) {
+    const auto prepare = [this](const auto& pair) {
         impl().db.prepare(pair.first, pair.second);
-    });
+    };
+
+    std::ranges::for_each(userStatemets, prepare);
+    std::ranges::for_each(roomStatements, prepare);
 }
 
 } //! slk
