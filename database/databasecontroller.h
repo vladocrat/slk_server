@@ -31,8 +31,8 @@ public:
     using RoomUserId = std::pair<const uint32_t, const uint32_t>;
 
     std::optional<RoomUserId> createRoom(const uint32_t creatorId, const std::string& name, const std::string& GUID);
-    std::optional<RoomData> getRoomByName(const std::string& name);
-    std::optional<RoomData> getRoomById(const uint32_t);
+    std::optional<RoomData> getRoom(const std::string& name);
+    std::optional<RoomData> getRoom(const uint32_t id);
     std::optional<std::vector<UserData>> getRoomUsers(const std::string& name);
     std::optional<std::vector<UserData>> getRoomUsers(const uint32_t id);
     bool roomExists(const std::string& roomName);

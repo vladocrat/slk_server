@@ -16,4 +16,14 @@ RoomData RoomData::fromTuple(const RoomDTO& dto)
     return ret;
 }
 
+RoomDTO RoomData::tie() const
+{
+    return std::tie(id, name, guid, creator_id);
+}
+
+bool RoomData::operator==(const RoomData& other)
+{
+    return tie() == other.tie();
+}
+
 }

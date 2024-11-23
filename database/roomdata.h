@@ -20,6 +20,10 @@ struct RoomData
     std::vector<UserData> users;
 
     static RoomData fromTuple(const RoomDTO&);
+
+    RoomDTO tie() const;
+
+    bool operator==(const RoomData& other);
 };
 
 } //! slk

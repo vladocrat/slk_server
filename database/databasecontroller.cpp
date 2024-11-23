@@ -220,12 +220,40 @@ std::optional<DatabaseController::RoomUserId> DatabaseController::createRoom(con
     return std::make_optional(std::make_pair(std::get<0>(row), std::get<1>(row)));
 }
 
-std::optional<RoomData> DatabaseController::getRoomByName(const std::string& name)
+std::optional<RoomData> DatabaseController::getRoom(const std::string& name)
 {
-    return {};
+    std::vector<RoomDTO> ret;
+    const auto res = impl().db.executePrepared("GET_ROOM_BY_NAME", ret, name);
+
+    if (!res) {
+        return std::nullopt;
+    }
+
+    if (ret.empty()) {
+        //! No error, such room doesn't exist
+        return std::make_optional<RoomData>();
+    }
+
+    if (ret.size() > 1) {
+        return std::nullopt;
+    }
+
+    const auto row = ret[0];
+
+    auto roomData = RoomData::fromTuple(row);
+
+    const auto users = getRoomUsers(name);
+
+    if (!users) {
+        return std::nullopt;
+    }
+
+    roomData.users = std::move(users.value());
+
+    return roomData;
 }
 
-std::optional<RoomData> DatabaseController::getRoomById(const uint32_t id)
+std::optional<RoomData> DatabaseController::getRoom(const uint32_t id)
 {
     std::vector<RoomDTO> ret;
     const auto res = impl().db.executePrepared("GET_ROOM_BY_ID", ret, id);
@@ -260,7 +288,26 @@ std::optional<RoomData> DatabaseController::getRoomById(const uint32_t id)
 
 std::optional<std::vector<UserData>> DatabaseController::getRoomUsers(const std::string& name)
 {
-    return {};
+    std::vector<UserDTO> users;
+    const auto res = impl().db.executePrepared("GET_USERS_FROM_ROOM_BY_NAME", users, name);
+
+    if (!res) {
+        return std::nullopt;
+    }
+
+    if (users.empty()) {
+        //! It's impossible to have no users in a room
+        //! Creator is added to the room on creation
+        return std::nullopt;
+    }
+
+    std::vector<UserData> ret;
+    ret.reserve(users.capacity());
+    std::ranges::for_each(users, [&ret](const auto& tupleDTO) {
+        ret.push_back(UserData::fromTuple(tupleDTO));
+    });
+
+    return std::make_optional(ret);
 }
 
 std::optional<std::vector<UserData>> DatabaseController::getRoomUsers(const uint32_t id)

@@ -10,10 +10,14 @@ class RoomsTest : public QObject
 
 private slots:
     void initTestCase();
-    void roomByIdTest();
+    void roomById();
+    void roomByName();
     void roomUsersById();
+    void roomUsersByName();
 
 private:
+    slk::RoomData testRoom();
+
     slk::DatabaseController m_controller;
 };
 
