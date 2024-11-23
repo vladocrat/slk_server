@@ -17,5 +17,7 @@ private slots:
    void userIdByUsername();
 
 private:
+   ~UsersTest();
+
    slk::DatabaseController m_controller;
 };

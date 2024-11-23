@@ -3,6 +3,8 @@
 #include <memory>
 #include <iostream>
 
+#include "typealiases.h"
+
 namespace
 {
 
@@ -150,5 +152,8 @@ bool Database::executePrepared(const std::string& query, const Params&... params
 template bool Database::executePrepared(const std::string&, const std::string&, const std::string&, const std::string&);
 template bool Database::executePrepared(const std::string&, std::vector<std::tuple<std::string, std::string, std::string>>&, const std::string&);
 template bool Database::executePrepared(const std::string&, std::vector<std::tuple<uint32_t>>&, const std::string&);
+template bool Database::executePrepared(const std::string&, std::vector<std::tuple<uint32_t, uint32_t>>&, const std::string&, const std::string&, const uint32_t&);
+template bool Database::executePrepared(const std::string&, std::vector<UserDTO>&, const uint32_t&);
+template bool Database::executePrepared(const std::string&, std::vector<RoomDTO>&, const uint32_t&);
 
 } //! slk

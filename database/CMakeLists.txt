@@ -5,7 +5,9 @@ add_library(database
     databasesettings.h databasesettings.cpp
     database.h database.cpp
     userdata.h userdata.cpp
-    validators.h validators.cpp)
+    validators.h validators.cpp
+    roomdata.h roomdata.cpp
+    typealiases.h)
 
 set(COMPILE_GENERATED ${libpqxx_BINARY_DIR}/include)
 

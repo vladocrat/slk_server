@@ -57,3 +57,8 @@ void UsersTest::userIdByUsername()
     QVERIFY(res);
     QVERIFY(res.value() == 2);
 }
+
+UsersTest::~UsersTest()
+{
+    m_controller.close();
+}
