@@ -5,8 +5,6 @@
 namespace slk
 {
 
-MessageParser::MessageParser() {}
-
 MessageParser::CommandResult MessageParser::parseCommand(const QByteArray& data) noexcept
 {
     QDataStream stream(data);

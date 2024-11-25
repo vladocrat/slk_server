@@ -107,7 +107,6 @@ bool Database::executePrepared(const std::string& query)
     return true;
 }
 
-
 template<class... ReturnFields, class... Params>
 bool Database::executePrepared(const std::string& query, std::vector<std::tuple<ReturnFields...>>& returnRows, const Params&... params)
 {

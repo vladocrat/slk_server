@@ -2,9 +2,13 @@
 
 #include <QTcpServer>
 
-#include "utils.h"
+#include "pimpl.h"
 
 namespace slk {
+
+namespace Messages {
+enum class MessageType : uint8_t;
+}
 
 class Server : public QTcpServer
 {
@@ -13,6 +17,9 @@ public:
     Server();
     ~Server();
     
+private:
+    void readData(QTcpSocket* const client, Messages::MessageType, const std::shared_ptr<QDataStream>&);
+
 private:
     DECLARE_PIMPL_EX(Server)
 };

@@ -35,9 +35,6 @@ public:
             } (unpackedArgs), ...);
         }, args);
     }
-
-private:
-    MessageParser();
 };
 
 } //! slk

@@ -80,70 +80,7 @@ Server::Server()
             //! TODO change to read it correctly (tcp packets)
             auto data = newClient->readAll();
             auto [type, stream] = MessageParser::parseCommand(data);
-            
-            switch (type)
-            {
-            case Messages::MessageType::PING:
-            {
-                send(newClient, MessageFactory::create(Messages::MessageType::PING, QByteArray{}));
-                break;
-            }
-            case Messages::MessageType::CONNECT_TO_ROOM:
-            {
-                QUuid roomId;
-                MessageParser::parseData(stream, std::tie(roomId));
-                qDebug() << roomId;
-                
-                const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
-                {
-                    return room->id() == roomId;
-                });
-                
-                if (it == impl().rooms.end())
-                {
-                    send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId));
-                    break;
-                }
-                
-                (*it)->addNewClient(newClient);
-                
-                break;
-            }
-            case Messages::MessageType::CREATE_ROOM:
-            {
-                //! TODO check from DB that the room with such name doesn't exist
-                QString name;
-                MessageParser::parseData(std::move(stream), std::tie(name));
-
-                const auto found = std::ranges::find_if(impl().rooms, [&name](const auto& room) {
-                    return room->name() == name;
-                }) != impl().rooms.end();
-
-                if (found) {
-                    send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CREATE_ROOM, QString("Room already exists")));
-                    break;
-                }
-
-                qDebug() << "Created room with name: " << name;
-                
-                const auto room = std::make_shared<Room>();
-                room->setName(name);
-                impl().rooms.push_back(room);
-
-                QObject::connect(room.get(), &Room::clientAdded, this, [](QTcpSocket* client, const QHostAddress& address, const uint32_t port) {
-                    send(client, MessageFactory::create(Messages::MessageType::CONNECTED_TO_ROOM, address, port));
-                });
-
-                send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id()));
-                break;
-            }
-            case Messages::MessageType::SEND_VOICE_MSG:
-            case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:
-            case Messages::MessageType::ROOM_CREATED:
-            case Messages::MessageType::FAILED_TO_CREATE_ROOM:
-            case Messages::MessageType::CONNECTED_TO_ROOM:
-                break;
-            }
+            readData(newClient, type, stream);
         });
     });    
 }
@@ -154,6 +91,73 @@ Server::~Server()
     {
         client->close();
         client->deleteLater();
+    }
+}
+
+void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, const std::shared_ptr<QDataStream>& stream)
+{
+    switch (type)
+    {
+    case Messages::MessageType::PING:
+    {
+        send(newClient, MessageFactory::create(Messages::MessageType::PING, QByteArray{}));
+        break;
+    }
+    case Messages::MessageType::CONNECT_TO_ROOM:
+    {
+        QUuid roomId;
+        MessageParser::parseData(stream, std::tie(roomId));
+        qDebug() << roomId;
+
+        const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
+                                             {
+                                                 return room->id() == roomId;
+                                             });
+
+        if (it == impl().rooms.end())
+        {
+            send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId));
+            break;
+        }
+
+        (*it)->addNewClient(newClient);
+
+        break;
+    }
+    case Messages::MessageType::CREATE_ROOM:
+    {
+        //! TODO check from DB that the room with such name doesn't exist
+        QString name;
+        MessageParser::parseData(std::move(stream), std::tie(name));
+
+        const auto found = std::ranges::find_if(impl().rooms, [&name](const auto& room) {
+                               return room->name() == name;
+                           }) != impl().rooms.end();
+
+        if (found) {
+            send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CREATE_ROOM, QString("Room already exists")));
+            break;
+        }
+
+        qDebug() << "Created room with name: " << name;
+
+        const auto room = std::make_shared<Room>();
+        room->setName(name);
+        impl().rooms.push_back(room);
+
+        QObject::connect(room.get(), &Room::clientAdded, this, [](QTcpSocket* client, const QHostAddress& address, const uint32_t port) {
+            send(client, MessageFactory::create(Messages::MessageType::CONNECTED_TO_ROOM, address, port));
+        });
+
+        send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id()));
+        break;
+    }
+    case Messages::MessageType::SEND_VOICE_MSG:
+    case Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM:
+    case Messages::MessageType::ROOM_CREATED:
+    case Messages::MessageType::FAILED_TO_CREATE_ROOM:
+    case Messages::MessageType::CONNECTED_TO_ROOM:
+        break;
     }
 }
 
