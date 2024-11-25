@@ -14,6 +14,9 @@ add_subdirectory(tests)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Network)
 
+set(NUM_CORES ${CMAKE_MAX_NUM_THREADS})
+set(CMAKE_BUILD_PARALLEL_LEVEL ${NUM_CORES} CACHE STRING "Maximum number of concurrent compilation jobs")
+
 add_executable(VoIP_server
   main.cpp
 )

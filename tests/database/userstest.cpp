@@ -2,6 +2,8 @@
 
 #include <QtTest/QTest>
 
+#include "roomdata.h"
+#include "roomstest.h"
 #include "hash.h"
 #include "userdata.h"
 #include "configurationcontroller.h"
@@ -16,6 +18,7 @@ void UsersTest::initTestCase()
 void UsersTest::userExists()
 {
     slk::UserData data;
+    data.id = 2;
     data.username = "test";
     data.password_hash = slk::createHash("password123!");
     data.mail = "test@gmail.com";
@@ -46,7 +49,7 @@ void UsersTest::userLogIn()
     data.password_hash = slk::createHash("password123!");
     data.mail = "test@gmail.com";
 
-    QVERIFY(m_controller.logIn(data));
+    QVERIFY(m_controller.logIn(data.mail, data.password_hash));
 }
 
 void UsersTest::userIdByUsername()
@@ -56,6 +59,15 @@ void UsersTest::userIdByUsername()
 
     QVERIFY(res);
     QVERIFY(res.value() == 2);
+}
+
+void UsersTest::roomsForUser()
+{
+    const uint32_t userId = 2;
+    const auto res = m_controller.getAllRoomsForUser(userId);
+
+    QVERIFY(res);
+    QVERIFY(res.value()[0] == RoomsTest::testRoom());
 }
 
 UsersTest::~UsersTest()

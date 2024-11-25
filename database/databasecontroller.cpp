@@ -15,9 +15,13 @@ namespace
 
 static const std::unordered_map<std::string, std::string> userStatemets = {
     {"ADD_USER", "INSERT INTO public.\"Users\" (username, password_hash, mail) VALUES ($1, $2, $3) RETURNING id;"},
-    {"GET_USER_BY_USERNAME", "SELECT * FROM public.\"Users\" WHERE username = $1;"},
-    {"GET_USER_BY_EMAIL", "SELECT * FROM public.\"Users\" WHERE mail = $1;"},
-    {"GET_USER_ID", "SELECT id FROM public.\"Users\" WHERE username = $1;"}
+    {"GET_USER_BY_USERNAME", R"(SELECT u.id, u.username, u.mail, u.password_hash FROM public."Users" u WHERE username = $1;)"},
+    {"GET_USER_BY_EMAIL", R"(SELECT u.id, u.username, u.mail, u.password_hash FROM public."Users" u WHERE mail = $1;)"},
+    {"GET_USER_ID", "SELECT id FROM public.\"Users\" WHERE username = $1;"},
+    {"GET_ALL_ROOMS_USER", R"(SELECT r.* FROM public."Rooms" r
+                            JOIN (
+                            SELECT room_id FROM public."User_Room" WHERE user_id = $1
+                            ) subquery on r.id = subquery.room_id;)"}
 };
 
 static const std::unordered_map<std::string, std::string> roomStatements = {
@@ -30,7 +34,7 @@ static const std::unordered_map<std::string, std::string> roomStatements = {
                              RETURNING room_id, user_id;)"},
     {"GET_ROOM_BY_NAME", R"(SELECT * FROM public."Rooms" WHERE name = $1;)"},
     {"GET_ROOM_BY_ID", R"(SELECT * FROM public."Rooms" WHERE id = $1;)"},
-    {"GET_USERS_FROM_ROOM_BY_NAME", R"(SELECT u.*
+    {"GET_USERS_FROM_ROOM_BY_NAME", R"(SELECT u.id, u.username, u.mail, u.password_hash
                                 FROM public."Users" u
                                 JOIN (
                                     SELECT ur.user_id
@@ -41,7 +45,7 @@ static const std::unordered_map<std::string, std::string> roomStatements = {
                                         WHERE r.name = $1
                                     )
                                 ) subquery ON u.id = subquery.user_id;)"},
-    {"GET_USERS_FROM_ROOM_BY_ID", R"(SELECT u.*
+    {"GET_USERS_FROM_ROOM_BY_ID", R"(SELECT u.id, u.username, u.mail, u.password_hash
                                 FROM public."Users" u
                                 JOIN (
                                     SELECT ur.user_id
@@ -80,65 +84,69 @@ DatabaseController::~DatabaseController()
 
 }
 
-bool DatabaseController::logIn(const UserData& userData)
+bool DatabaseController::logIn(const std::string& mail, const std::string& password)
 {
-    UserData DBUserData;
-
-    if (userData.mail.empty()) {
-        const auto res = getUserByUsername(userData.username);
-
-        if (!res) {
-            return false;
-        }
-
-        DBUserData = res.value();
-    } else {
-        EmailValidatior validator;
-        if (!validator(userData.mail)) {
-            return false;
-        }
-
-        const auto res = getUserByEmail(userData.mail);
-
-        if (!res) {
-            return false;
-        }
-
-        DBUserData = res.value();
-    }
-
-    if (userData.password_hash != getUserByUsername(userData.username)->password_hash) {
+    if (mail.empty() || password.empty()) {
         return false;
     }
 
-    return true;
+    EmailValidatior validator;
+
+    if (!validator(mail)) {
+        return false;
+    }
+
+    const auto res = getUserByEmail(mail);
+
+    if (!res) {
+        return false;
+    }
+
+    return res.value().password_hash == password;
 }
 
-bool DatabaseController::registerUser(const UserData& userData)
+std::optional<uint32_t> DatabaseController::registerUser(const UserData& userData)
 {
     EmailValidatior validator;
     if (!validator(userData.mail)) {
-        return false;
+        return std::nullopt;
     }
 
     if (userData.username.empty() || userData.mail.empty() || userData.password_hash.empty()) {
-        return false;
+        return std::nullopt;
     }
 
     if (userData.username.size() < MINIMUM_CHARACTER_REQUIRMENT) {
-        return false;
+        return std::nullopt;
     }
 
     if (userExists(userData)) {
-        return false;
+        return std::nullopt;
     }
 
-    return impl().db.executePrepared("ADD_USER", userData.username, userData.password_hash, userData.mail);
+    std::vector<std::tuple<uint32_t>> id;
+    const auto res = impl().db.executePrepared("ADD_USER", id, userData.username, userData.password_hash, userData.mail);
+
+    if (!res) {
+        return std::nullopt;
+    }
+
+    const auto& row = id[0];
+
+    return std::make_optional(std::get<0>(row));
 }
 
 bool DatabaseController::userExists(const UserData& userData)
 {
-    return getUserByUsername(userData.username).has_value() || getUserByEmail(userData.mail).has_value();
+    if (getUserByUsername(userData.username).has_value()) {
+        return true;
+    }
+
+    if (getUserByEmail(userData.mail).has_value()) {
+        return true;
+    }
+
+    return  false;
 }
 
 std::optional<uint32_t> DatabaseController::getUserIdByUsername(const std::string& username)
@@ -166,7 +174,7 @@ std::optional<uint32_t> DatabaseController::getUserIdByUsername(const std::strin
 
 std::optional<UserData> DatabaseController::getUserByUsername(const std::string& username)
 {
-    std::vector<std::tuple<std::string, std::string, std::string>> userDataCont;
+    std::vector<UserDTO> userDataCont;
     impl().db.executePrepared("GET_USER_BY_USERNAME", userDataCont, username);
 
     if (userDataCont.size() > 1 || userDataCont.empty()) {
@@ -175,17 +183,12 @@ std::optional<UserData> DatabaseController::getUserByUsername(const std::string&
 
     const auto& userData = userDataCont[0];
 
-    UserData user;
-    user.username = std::get<0>(userData);
-    user.password_hash = std::get<1>(userData);
-    user.mail = std::get<2>(userData);
-
-    return std::make_optional(user);
+    return std::make_optional(UserData::fromTuple(userData));
 }
 
 std::optional<UserData> DatabaseController::getUserByEmail(const std::string& email)
 {
-    std::vector<std::tuple<std::string, std::string, std::string>> userDataCont;
+    std::vector<UserDTO> userDataCont;
     impl().db.executePrepared("GET_USER_BY_EMAIL", userDataCont, email);
 
     if (userDataCont.size() > 1 || userDataCont.empty()) {
@@ -194,12 +197,25 @@ std::optional<UserData> DatabaseController::getUserByEmail(const std::string& em
 
     const auto& userData = userDataCont[0];
 
-    UserData user;
-    user.username = std::get<0>(userData);
-    user.password_hash = std::get<1>(userData);
-    user.mail = std::get<2>(userData);
+    return std::make_optional(UserData::fromTuple(userData));
+}
 
-    return std::make_optional(user);
+std::optional<std::vector<RoomData>> DatabaseController::getAllRoomsForUser(const uint32_t userId)
+{
+    std::vector<RoomDTO> rooms;
+    const auto res = impl().db.executePrepared("GET_ALL_ROOMS_USER", rooms, userId);
+
+    if (!res) {
+        return std::nullopt;
+    }
+
+    std::vector<RoomData> ret;
+    ret.reserve(rooms.size());
+    std::ranges::for_each(rooms, [&ret](const RoomDTO& dto) {
+        ret.push_back(RoomData::fromTuple(dto));
+    });
+
+    return ret;
 }
 
 std::optional<DatabaseController::RoomUserId> DatabaseController::createRoom(const uint32_t creatorId, const std::string& name, const std::string& GUID)
@@ -336,12 +352,12 @@ std::optional<std::vector<UserData>> DatabaseController::getRoomUsers(const uint
 
 bool DatabaseController::roomExists(const std::string& roomName)
 {
-    return false;
+    return getRoom(roomName).has_value();
 }
 
 bool DatabaseController::roomExists(const uint32_t id)
 {
-    return false;
+    return getRoom(id).has_value();
 }
 
 bool DatabaseController::connect()

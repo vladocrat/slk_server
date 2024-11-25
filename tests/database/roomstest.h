@@ -8,6 +8,9 @@ class RoomsTest : public QObject
 {
     Q_OBJECT
 
+public:
+    static slk::RoomData testRoom();
+
 private slots:
     void initTestCase();
     void roomById();
@@ -16,8 +19,6 @@ private slots:
     void roomUsersByName();
 
 private:
-    slk::RoomData testRoom();
-
     slk::DatabaseController m_controller;
 };
 

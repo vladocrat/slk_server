@@ -20,12 +20,13 @@ public:
     ~DatabaseController();
 
     //! Users
-    bool logIn(const UserData& userData);
-    bool registerUser(const UserData& userData);
+    bool logIn(const std::string& mail, const std::string& password);
     bool userExists(const UserData&);
+    std::optional<uint32_t> registerUser(const UserData& userData);
     std::optional<uint32_t> getUserIdByUsername(const std::string& username);
     std::optional<UserData> getUserByUsername(const std::string& username);
     std::optional<UserData> getUserByEmail(const std::string& email);
+    std::optional<std::vector<RoomData>> getAllRoomsForUser(const uint32_t userId);
 
     //! Rooms
     using RoomUserId = std::pair<const uint32_t, const uint32_t>;

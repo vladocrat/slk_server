@@ -149,7 +149,7 @@ bool Database::executePrepared(const std::string& query, const Params&... params
     return true;
 }
 
-template bool Database::executePrepared(const std::string&, const std::string&, const std::string&, const std::string&);
+template bool Database::executePrepared(const std::string&, std::vector<std::tuple<uint32_t>>&, const std::string&, const std::string&, const std::string&);
 template bool Database::executePrepared(const std::string&, std::vector<std::tuple<uint32_t>>&, const std::string&);
 template bool Database::executePrepared(const std::string&, std::vector<std::tuple<uint32_t, uint32_t>>&, const std::string&, const std::string&, const uint32_t&);
 template bool Database::executePrepared(const std::string&, std::vector<UserDTO>&, const uint32_t&);

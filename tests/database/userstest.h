@@ -15,6 +15,7 @@ private slots:
    void userByUsername();
    void userLogIn();
    void userIdByUsername();
+   void roomsForUser();
 
 private:
    ~UsersTest();
