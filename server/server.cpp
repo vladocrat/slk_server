@@ -6,6 +6,8 @@
 #include <QUuid>
 #include <QDebug>
 #include <QCoreApplication>
+#include <QSslConfiguration>
+#include <QSslKey>
 
 #include <vector>
 #include <algorithm>
@@ -38,15 +40,34 @@ void send(QTcpSocket* client, std::unique_ptr<QByteArray>&& data)
 
 struct Server::impl_t
 {
-    std::vector<QTcpSocket*> pendingClients;
+    std::vector<QSslSocket*> pendingClients;
     std::vector<std::shared_ptr<Room>> rooms;
     DatabaseController dbController;
+    QSslConfiguration sslConfiguration;
 };
 
 Server::Server()
 {
     createImpl();
     
+    const auto sslSettings = ConfigurationController::getSslSettings();
+
+    if (!sslSettings) {
+        qDebug() << "failed to get ssl settings";
+        QCoreApplication::exit(-1);
+    }
+
+    const auto [certBinData, keyBinData] = sslSettings.value();
+
+    impl().sslConfiguration = QSslConfiguration::defaultConfiguration();
+    QSslCertificate sslCertificate(certBinData);
+    QSslKey sslKey(keyBinData, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, "server");
+    impl().sslConfiguration.setPrivateKey(sslKey);
+    impl().sslConfiguration.addCaCertificate(sslCertificate);
+    impl().sslConfiguration.setLocalCertificate(sslCertificate);
+    impl().sslConfiguration.setProtocol(QSsl::TlsV1_3);
+    setSslConfiguration(impl().sslConfiguration);
+
     if (!impl().dbController.connect(ConfigurationController::getDBSettings())) {
         qDebug() << "failed to connect to DB";
         QCoreApplication::exit(-1);
@@ -59,30 +80,9 @@ Server::Server()
 
     qDebug() << "Connection to DB established succesfully";
 
-    QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]()
-    {
-        const auto newClient = nextPendingConnection();
-        impl().pendingClients.push_back(newClient);
-        
-        QObject::connect(newClient, &QTcpSocket::disconnected, this, [this, newClient]()
-        {
-            const auto it = std::ranges::find(impl().pendingClients, newClient);
-            
-            if (it != impl().pendingClients.end())
-            {
-                impl().pendingClients.erase(it);
-                newClient->deleteLater();
-            }
-        });
-        
-        QObject::connect(newClient, &QTcpSocket::readyRead, this, [this, newClient]()
-        {
-            //! TODO change to read it correctly (tcp packets)
-            auto data = newClient->readAll();
-            auto [type, stream] = MessageParser::parseCommand(data);
-            readData(newClient, type, stream);
-        });
-    });    
+    QObject::connect(this, &QSslServer::errorOccurred, this, [](QSslSocket*, QAbstractSocket::SocketError socketError) {
+        qDebug() << socketError;
+    });
 }
 
 Server::~Server()
@@ -92,10 +92,18 @@ Server::~Server()
         client->close();
         client->deleteLater();
     }
+
+    for (const auto& room : impl().rooms) {
+        room->deleteLater();
+    }
+
+    impl().dbController.close();
 }
 
-void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, const std::shared_ptr<QDataStream>& stream)
+void Server::readData(QSslSocket* const newClient, Messages::MessageType type, const std::shared_ptr<QDataStream>& stream)
 {
+    qDebug() << static_cast<int>(type);
+
     switch (type)
     {
     case Messages::MessageType::PING:
@@ -109,8 +117,7 @@ void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, c
         MessageParser::parseData(stream, std::tie(roomId));
         qDebug() << roomId;
 
-        const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
-                                             {
+        const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room) {
                                                  return room->id() == roomId;
                                              });
 
@@ -159,6 +166,41 @@ void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, c
     case Messages::MessageType::CONNECTED_TO_ROOM:
         break;
     }
+}
+
+void Server::incomingConnection(qintptr handle)
+{
+    qDebug() << "New connection!";
+    const auto socket = new QSslSocket;
+    socket->setSocketDescriptor(handle);
+    socket->setSslConfiguration(impl().sslConfiguration);
+    socket->startServerEncryption();
+
+    QObject::connect(socket, &QSslSocket::alertReceived, this, [](QSsl::AlertLevel level, QSsl::AlertType type, const QString& description) {
+        qDebug() << level << " " << type << " " << description;
+    });
+
+    QObject::connect(socket, &QSslSocket::disconnected, this, [this, socket]() {
+        qDebug() << "Client disconnected";
+
+        const auto it = std::ranges::find(impl().pendingClients, socket);
+
+        if (it != impl().pendingClients.end()) {
+            auto val = *it;
+            impl().pendingClients.erase(it);
+            val->deleteLater();
+            val = nullptr;
+        }
+    });
+
+    QObject::connect(socket, &QSslSocket::readyRead, this, [this, socket]() {
+        //! TODO change to read it correctly (tcp packets)
+        auto data = socket->readAll();
+        auto [type, stream] = MessageParser::parseCommand(data);
+        readData(socket, type, stream);
+    });
+
+    impl().pendingClients.push_back(socket);
 }
 
 } //! slk

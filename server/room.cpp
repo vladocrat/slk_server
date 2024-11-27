@@ -3,7 +3,7 @@
 #include <QString>
 #include <QUuid>
 #include <QDebug>
-#include <QTcpSocket>
+#include <QSslSocket>
 
 #include <vector>
 
@@ -47,7 +47,7 @@ void Room::setName(const QString& name) noexcept
     impl().name = name;
 }
 
-void Room::addNewClient(QTcpSocket* newClient) noexcept
+void Room::addNewClient(QSslSocket* newClient) noexcept
 {
     if (!newClient) return;
     

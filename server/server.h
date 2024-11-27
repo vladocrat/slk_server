@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QTcpServer>
+#include <QSslServer>
 
 #include "pimpl.h"
 
@@ -8,9 +9,9 @@ namespace slk {
 
 namespace Messages {
 enum class MessageType : uint8_t;
-}
+} //! Messages
 
-class Server : public QTcpServer
+class Server : public QSslServer
 {
     Q_OBJECT
 public:
@@ -18,10 +19,14 @@ public:
     ~Server();
     
 private:
-    void readData(QTcpSocket* const client, Messages::MessageType, const std::shared_ptr<QDataStream>&);
+    void readData(QSslSocket* const client, Messages::MessageType, const std::shared_ptr<QDataStream>&);
+
+protected:
+    void incomingConnection(qintptr handle) override;
 
 private:
     DECLARE_PIMPL_EX(Server)
+
 };
 
 } //! slk

@@ -13,6 +13,7 @@ add_subdirectory(configuration)
 add_subdirectory(tests)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Network)
+find_package(OpenSSL REQUIRED)
 
 set(NUM_CORES ${CMAKE_MAX_NUM_THREADS})
 set(CMAKE_BUILD_PARALLEL_LEVEL ${NUM_CORES} CACHE STRING "Maximum number of concurrent compilation jobs")
@@ -21,11 +22,14 @@ add_executable(VoIP_server
   main.cpp
 )
 
-target_link_libraries(VoIP_server PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network server configuration)
+target_link_libraries(VoIP_server PRIVATE Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Network server configuration ${OPENSSL_CRYPTO_LIBRARY})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(COPY "dbhost.ini" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
     file(COPY "dbhost.ini" DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/tests)
+    file(COPY "cert.pem" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    file(COPY "key.pem" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 include(GNUInstallDirs)

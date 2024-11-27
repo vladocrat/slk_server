@@ -3,9 +3,9 @@
 #include <QObject>
 #include <QHostAddress>
 
-#include "utils.h"
+#include "pimpl.h"
 
-class QTcpSocket;
+class QSslSocket;
 class QUuid;
 
 namespace slk {
@@ -23,11 +23,11 @@ public:
     QString name() const noexcept;
     void setName(const QString& name) noexcept;
     
-    void addNewClient(QTcpSocket* newClient) noexcept;
+    void addNewClient(QSslSocket* newClient) noexcept;
     
 signals:
-    void clientAlreadyExists(QTcpSocket*);
-    void clientAdded(QTcpSocket*, const QHostAddress& address, const uint32_t port);
+    void clientAlreadyExists(QSslSocket*);
+    void clientAdded(QSslSocket*, const QHostAddress& address, const uint32_t port);
     
 private:
     bool clientExists(const std::shared_ptr<Client>& client) const noexcept;
