@@ -6,6 +6,8 @@
 #include <QUuid>
 #include <QDebug>
 #include <QCoreApplication>
+#include <QSslConfiguration>
+#include <QSslKey>
 
 #include <vector>
 #include <algorithm>
@@ -41,12 +43,31 @@ struct Server::impl_t
     std::vector<QTcpSocket*> pendingClients;
     std::vector<std::shared_ptr<Room>> rooms;
     DatabaseController dbController;
+    QSslConfiguration sslConfiguration;
 };
 
 Server::Server()
 {
     createImpl();
     
+    const auto sslSettings = ConfigurationController::getSslSettings();
+
+    if (!sslSettings) {
+        qDebug() << "failed to get ssl settings";
+        QCoreApplication::exit(-1);
+    }
+
+    const auto [cert, key] = sslSettings.value();
+
+    impl().sslConfiguration = QSslConfiguration::defaultConfiguration();
+    QSslCertificate sslCertificate(cert);
+    QSslKey sslKey(key, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, "server");
+    impl().sslConfiguration.setPrivateKey(sslKey);
+    impl().sslConfiguration.addCaCertificate(sslCertificate);
+    impl().sslConfiguration.setLocalCertificate(sslCertificate);
+    impl().sslConfiguration.setProtocol(QSsl::TlsV1_3);
+    setSslConfiguration(impl().sslConfiguration);
+
     if (!impl().dbController.connect(ConfigurationController::getDBSettings())) {
         qDebug() << "failed to connect to DB";
         QCoreApplication::exit(-1);
@@ -59,8 +80,36 @@ Server::Server()
 
     qDebug() << "Connection to DB established succesfully";
 
-    QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]()
-    {
+    QObject::connect(this, &QSslServer::peerVerifyError, this, [](QSslSocket *socket, const QSslError &error) {
+        qDebug() << error;
+    });
+
+    QObject::connect(this, &QSslServer::alertReceived, this, [](QSslSocket *socket, QSsl::AlertLevel level, QSsl::AlertType type, const QString &description) {
+        qDebug() << level << " " << type << " " << description;
+    });
+
+    QObject::connect(this, &QSslServer::alertSent, this, [](QSslSocket *socket, QSsl::AlertLevel level, QSsl::AlertType type, const QString &description) {
+        qDebug() << level << " " << type << " " << description;
+    });
+
+    QObject::connect(this, &QSslServer::pendingConnectionAvailable, this, []() {
+        qDebug() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+    });
+
+    QObject::connect(this, &QSslServer::startedEncryptionHandshake, this, []() {
+        qDebug() << "started handshake";
+    });
+
+    QObject::connect(this, &QSslServer::errorOccurred, this, [](QSslSocket*, QSslSocket::SocketError err) {
+        qDebug() << "error " << err;
+    });
+
+    QObject::connect(this, &QSslServer::handshakeInterruptedOnError, this, [](QSslSocket*, QSslError err) {
+        qDebug() << "error " << err;
+    });
+
+    QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]() {
+        qDebug() << "new connection available!";
         const auto newClient = nextPendingConnection();
         impl().pendingClients.push_back(newClient);
         
@@ -75,8 +124,7 @@ Server::Server()
             }
         });
         
-        QObject::connect(newClient, &QTcpSocket::readyRead, this, [this, newClient]()
-        {
+        QObject::connect(newClient, &QTcpSocket::readyRead, this, [this, newClient]() {
             //! TODO change to read it correctly (tcp packets)
             auto data = newClient->readAll();
             auto [type, stream] = MessageParser::parseCommand(data);

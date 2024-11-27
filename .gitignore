@@ -1,4 +1,5 @@
 dbhost.ini
+*.pem
 
 build/
 # C++ objects and libs

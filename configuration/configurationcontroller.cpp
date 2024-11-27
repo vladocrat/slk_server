@@ -1,6 +1,7 @@
 #include "configurationcontroller.h"
 
 #include <QSettings>
+#include <QFile>
 
 #include "databasesettings.h"
 
@@ -31,6 +32,31 @@ DatabaseSettings ConfigurationController::getDBSettings()
     settings.endGroup();
 
     return dbSettings;
+}
+
+std::optional<ConfigurationController::SslCertKey> ConfigurationController::getSslSettings()
+{
+    const auto certPath = "cert.pem";
+    const auto keyPath = "key.pem";
+
+    const auto readFile = [](const QString& filename) -> std::optional<QByteArray> {
+        QFile file(filename);
+
+        if (!file.open(QIODevice::ReadOnly)) {
+            return std::nullopt;
+        }
+
+        return std::make_optional(file.readAll());
+    };
+
+    const auto cert = readFile(certPath);
+    const auto key = readFile(keyPath);
+
+    if (!cert || !key) {
+        return std::nullopt;
+    }
+
+    return std::make_optional(std::make_pair(cert.value(), key.value()));
 }
 
 } //! slk
