@@ -7,7 +7,11 @@
 
 #include <vector>
 
+#include <alog/logger.h>
+
 #include "client.h"
+
+DEFINE_ALOGGER_MODULE_NS(Room);
 
 namespace slk {
 
@@ -22,7 +26,7 @@ Room::Room()
 {
     createImpl();
     impl().id = QUuid::createUuid();
-    qDebug() << "new room: " << impl().id;
+    LOGD << "new room: " << impl().id.toString();
 }
 
 Room::~Room()
@@ -67,12 +71,12 @@ void Room::addNewClient(QSslSocket* newClient) noexcept
             return first->tcpConnection() == second->tcpConnection();
         });
 
-        qDebug() << "client dissconnected";
+        LOGI << "Client left room: " << impl().id.toString() << " " << impl().name;
         impl().clients.erase(first, last);
-        qDebug() << "room size: " << impl().clients.size();
+        LOGI << "Room size: " << impl().clients.size();
     });
 
-    qDebug() << address << " " << port;
+    LOGD << "New user added to room: " << impl().id.toString() << " with address: " << address << ":" << port;
     emit clientAdded(newClient, address, port);
 }
 

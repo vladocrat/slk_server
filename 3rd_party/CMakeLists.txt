@@ -8,3 +8,11 @@ FetchContent_Declare(
 set(PQXX_LIBRARIES pqxx_static)
 
 FetchContent_MakeAvailable(libpqxx)
+
+FetchContent_Declare(alog
+  GIT_REPOSITORY https://github.com/ihor-drachuk/alog.git
+  GIT_TAG        dev
+)
+
+FetchContent_MakeAvailable(alog)
+

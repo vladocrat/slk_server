@@ -12,6 +12,8 @@
 #include <vector>
 #include <algorithm>
 
+#include <alog/logger.h>
+
 #include "room.h"
 #include "protocol.h"
 #include "messageparser.h"
@@ -21,6 +23,8 @@
 #include "databasecontroller.h"
 #include "userdata.h"
 #include "hash.h"
+
+DEFINE_ALOGGER_MODULE_NS(Server);
 
 namespace slk {
 
@@ -69,19 +73,19 @@ Server::Server()
     setSslConfiguration(impl().sslConfiguration);
 
     if (!impl().dbController.connect(ConfigurationController::getDBSettings())) {
-        qDebug() << "failed to connect to DB";
+        LOGE << "failed to connect to DB";
         QCoreApplication::exit(-1);
     }
 
     QObject::connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
         bool ok = !impl().dbController.close();
-        qDebug() << (ok ? "connection closed" : "failed to close connection");
+        LOGD << (ok ? "connection closed" : "failed to close connection");
     });
 
-    qDebug() << "Connection to DB established succesfully";
+    LOGI << "Connection to DB established succesfully";
 
     QObject::connect(this, &QSslServer::errorOccurred, this, [](QSslSocket*, QAbstractSocket::SocketError socketError) {
-        qDebug() << socketError;
+        LOGE() << socketError;
     });
 }
 
@@ -102,7 +106,7 @@ Server::~Server()
 
 void Server::readData(QSslSocket* const newClient, Messages::MessageType type, const std::shared_ptr<QDataStream>& stream)
 {
-    qDebug() << static_cast<int>(type);
+    LOGD << static_cast<int>(type);
 
     switch (type)
     {
@@ -115,7 +119,7 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
     {
         QUuid roomId;
         MessageParser::parseData(stream, std::tie(roomId));
-        qDebug() << roomId;
+        LOGD << roomId.toString();
 
         const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room) {
                                                  return room->id() == roomId;
@@ -146,7 +150,7 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
             break;
         }
 
-        qDebug() << "Created room with name: " << name;
+        LOGI << "Created room with name: " << name;
 
         const auto room = std::make_shared<Room>();
         room->setName(name);
@@ -170,18 +174,19 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
 
 void Server::incomingConnection(qintptr handle)
 {
-    qDebug() << "New connection!";
+    LOGI << "New connection!";
+
     const auto socket = new QSslSocket;
     socket->setSocketDescriptor(handle);
     socket->setSslConfiguration(impl().sslConfiguration);
     socket->startServerEncryption();
 
     QObject::connect(socket, &QSslSocket::alertReceived, this, [](QSsl::AlertLevel level, QSsl::AlertType type, const QString& description) {
-        qDebug() << level << " " << type << " " << description;
+        LOGD << level << " " << type << " " << description;
     });
 
     QObject::connect(socket, &QSslSocket::disconnected, this, [this, socket]() {
-        qDebug() << "Client disconnected";
+        LOGI << "Client disconnected";
 
         const auto it = std::ranges::find(impl().pendingClients, socket);
 

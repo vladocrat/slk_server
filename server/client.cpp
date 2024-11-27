@@ -4,6 +4,10 @@
 #include <QSslSocket>
 #include <QNetworkDatagram>
 
+#include <alog/logger.h>
+
+DEFINE_ALOGGER_MODULE_NS(Client);
+
 namespace slk {
 
 struct Client::impl_t
@@ -34,11 +38,11 @@ Client::Client(QSslSocket* pendingConnection)
 
     if (!impl().udpConnection->bind(QHostAddress::LocalHost))
     {
-        qDebug() << "failed to bind";
+        LOGE << "failed to bind";
         return;
     }
 
-    qDebug() << "Binded!";
+    LOGI << "Bound!";
 }
 
 Client::Client(Client&& client)

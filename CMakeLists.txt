@@ -23,7 +23,7 @@ add_executable(VoIP_server
 )
 
 target_link_libraries(VoIP_server PRIVATE Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Network server configuration ${OPENSSL_CRYPTO_LIBRARY})
+    Qt${QT_VERSION_MAJOR}::Network server configuration ${OPENSSL_CRYPTO_LIBRARY} alog)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     file(COPY "dbhost.ini" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
