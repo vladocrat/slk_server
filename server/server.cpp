@@ -40,7 +40,7 @@ void send(QTcpSocket* client, std::unique_ptr<QByteArray>&& data)
 
 struct Server::impl_t
 {
-    std::vector<QTcpSocket*> pendingClients;
+    std::vector<QSslSocket*> pendingClients;
     std::vector<std::shared_ptr<Room>> rooms;
     DatabaseController dbController;
     QSslConfiguration sslConfiguration;
@@ -57,11 +57,11 @@ Server::Server()
         QCoreApplication::exit(-1);
     }
 
-    const auto [cert, key] = sslSettings.value();
+    const auto [certBinData, keyBinData] = sslSettings.value();
 
     impl().sslConfiguration = QSslConfiguration::defaultConfiguration();
-    QSslCertificate sslCertificate(cert);
-    QSslKey sslKey(key, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, "server");
+    QSslCertificate sslCertificate(certBinData);
+    QSslKey sslKey(keyBinData, QSsl::Rsa, QSsl::Pem, QSsl::PrivateKey, "server");
     impl().sslConfiguration.setPrivateKey(sslKey);
     impl().sslConfiguration.addCaCertificate(sslCertificate);
     impl().sslConfiguration.setLocalCertificate(sslCertificate);
@@ -80,57 +80,9 @@ Server::Server()
 
     qDebug() << "Connection to DB established succesfully";
 
-    QObject::connect(this, &QSslServer::peerVerifyError, this, [](QSslSocket *socket, const QSslError &error) {
-        qDebug() << error;
+    QObject::connect(this, &QSslServer::errorOccurred, this, [](QSslSocket*, QAbstractSocket::SocketError socketError) {
+        qDebug() << socketError;
     });
-
-    QObject::connect(this, &QSslServer::alertReceived, this, [](QSslSocket *socket, QSsl::AlertLevel level, QSsl::AlertType type, const QString &description) {
-        qDebug() << level << " " << type << " " << description;
-    });
-
-    QObject::connect(this, &QSslServer::alertSent, this, [](QSslSocket *socket, QSsl::AlertLevel level, QSsl::AlertType type, const QString &description) {
-        qDebug() << level << " " << type << " " << description;
-    });
-
-    QObject::connect(this, &QSslServer::pendingConnectionAvailable, this, []() {
-        qDebug() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-    });
-
-    QObject::connect(this, &QSslServer::startedEncryptionHandshake, this, []() {
-        qDebug() << "started handshake";
-    });
-
-    QObject::connect(this, &QSslServer::errorOccurred, this, [](QSslSocket*, QSslSocket::SocketError err) {
-        qDebug() << "error " << err;
-    });
-
-    QObject::connect(this, &QSslServer::handshakeInterruptedOnError, this, [](QSslSocket*, QSslError err) {
-        qDebug() << "error " << err;
-    });
-
-    QObject::connect(this, &QTcpServer::pendingConnectionAvailable, this, [this]() {
-        qDebug() << "new connection available!";
-        const auto newClient = nextPendingConnection();
-        impl().pendingClients.push_back(newClient);
-        
-        QObject::connect(newClient, &QTcpSocket::disconnected, this, [this, newClient]()
-        {
-            const auto it = std::ranges::find(impl().pendingClients, newClient);
-            
-            if (it != impl().pendingClients.end())
-            {
-                impl().pendingClients.erase(it);
-                newClient->deleteLater();
-            }
-        });
-        
-        QObject::connect(newClient, &QTcpSocket::readyRead, this, [this, newClient]() {
-            //! TODO change to read it correctly (tcp packets)
-            auto data = newClient->readAll();
-            auto [type, stream] = MessageParser::parseCommand(data);
-            readData(newClient, type, stream);
-        });
-    });    
 }
 
 Server::~Server()
@@ -140,10 +92,18 @@ Server::~Server()
         client->close();
         client->deleteLater();
     }
+
+    for (const auto& room : impl().rooms) {
+        room->deleteLater();
+    }
+
+    impl().dbController.close();
 }
 
-void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, const std::shared_ptr<QDataStream>& stream)
+void Server::readData(QSslSocket* const newClient, Messages::MessageType type, const std::shared_ptr<QDataStream>& stream)
 {
+    qDebug() << static_cast<int>(type);
+
     switch (type)
     {
     case Messages::MessageType::PING:
@@ -157,8 +117,7 @@ void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, c
         MessageParser::parseData(stream, std::tie(roomId));
         qDebug() << roomId;
 
-        const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room)
-                                             {
+        const auto it = std::ranges::find_if(impl().rooms, [roomId](const auto& room) {
                                                  return room->id() == roomId;
                                              });
 
@@ -207,6 +166,41 @@ void Server::readData(QTcpSocket* const newClient, Messages::MessageType type, c
     case Messages::MessageType::CONNECTED_TO_ROOM:
         break;
     }
+}
+
+void Server::incomingConnection(qintptr handle)
+{
+    qDebug() << "New connection!";
+    const auto socket = new QSslSocket;
+    socket->setSocketDescriptor(handle);
+    socket->setSslConfiguration(impl().sslConfiguration);
+    socket->startServerEncryption();
+
+    QObject::connect(socket, &QSslSocket::alertReceived, this, [](QSsl::AlertLevel level, QSsl::AlertType type, const QString& description) {
+        qDebug() << level << " " << type << " " << description;
+    });
+
+    QObject::connect(socket, &QSslSocket::disconnected, this, [this, socket]() {
+        qDebug() << "Client disconnected";
+
+        const auto it = std::ranges::find(impl().pendingClients, socket);
+
+        if (it != impl().pendingClients.end()) {
+            auto val = *it;
+            impl().pendingClients.erase(it);
+            val->deleteLater();
+            val = nullptr;
+        }
+    });
+
+    QObject::connect(socket, &QSslSocket::readyRead, this, [this, socket]() {
+        //! TODO change to read it correctly (tcp packets)
+        auto data = socket->readAll();
+        auto [type, stream] = MessageParser::parseCommand(data);
+        readData(socket, type, stream);
+    });
+
+    impl().pendingClients.push_back(socket);
 }
 
 } //! slk

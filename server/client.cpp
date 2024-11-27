@@ -1,18 +1,18 @@
 #include "client.h"
 
 #include <QUdpSocket>
-#include <QTcpSocket>
+#include <QSslSocket>
 #include <QNetworkDatagram>
 
 namespace slk {
 
 struct Client::impl_t
 {
-    QTcpSocket* tcpConnection { nullptr };
+    QSslSocket* tcpConnection { nullptr };
     QUdpSocket* udpConnection { nullptr };
 };
 
-Client::Client(QTcpSocket* pendingConnection)
+Client::Client(QSslSocket* pendingConnection)
 {
     if (!pendingConnection) return;
     
@@ -53,7 +53,7 @@ Client::~Client()
     impl().udpConnection->deleteLater();
 }
 
-const QTcpSocket* Client::tcpConnection() const noexcept
+const QSslSocket* Client::tcpConnection() const noexcept
 {
     return impl().tcpConnection;
 }

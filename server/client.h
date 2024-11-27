@@ -2,9 +2,9 @@
 
 #include <QHostAddress>
 
-#include "utils.h"
+#include "pimpl.h"
 
-class QTcpSocket;
+class QSslSocket;
 
 namespace slk {
 
@@ -14,11 +14,11 @@ class Client : QObject
 public:
     using UdpSettings = std::pair<QHostAddress, uint32_t>;
 
-    Client(QTcpSocket* pendingConnection);
+    Client(QSslSocket* pendingConnection);
     Client(Client&& client);
     ~Client();
     
-    const QTcpSocket* tcpConnection() const noexcept;
+    const QSslSocket* tcpConnection() const noexcept;
     UdpSettings udpSettings() const noexcept;
 
 private:

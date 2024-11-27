@@ -39,24 +39,27 @@ std::optional<ConfigurationController::SslCertKey> ConfigurationController::getS
     const auto certPath = "cert.pem";
     const auto keyPath = "key.pem";
 
-    const auto readFile = [](const QString& filename) -> std::optional<QByteArray> {
+    const auto readFile = [](const QString& filename) -> QByteArray {
         QFile file(filename);
 
         if (!file.open(QIODevice::ReadOnly)) {
-            return std::nullopt;
+            return {};
         }
 
-        return std::make_optional(file.readAll());
+        const auto binData = file.readAll();
+        file.close();
+
+        return binData;
     };
 
     const auto cert = readFile(certPath);
     const auto key = readFile(keyPath);
 
-    if (!cert || !key) {
+    if (cert.isEmpty() || key.isEmpty()) {
         return std::nullopt;
     }
 
-    return std::make_optional(std::make_pair(cert.value(), key.value()));
+    return std::make_optional(std::make_pair(cert, key));
 }
 
 } //! slk
