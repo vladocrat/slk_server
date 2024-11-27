@@ -85,7 +85,7 @@ Server::Server()
     LOGI << "Connection to DB established succesfully";
 
     QObject::connect(this, &QSslServer::errorOccurred, this, [](QSslSocket*, QAbstractSocket::SocketError socketError) {
-        LOGE() << socketError;
+        LOGE << socketError;
     });
 }
 
