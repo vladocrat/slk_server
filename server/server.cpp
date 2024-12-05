@@ -12,18 +12,16 @@
 #include <vector>
 #include <algorithm>
 
-#include <alog/logger.h>
-
 #include "room.h"
 #include "protocol.h"
 #include "messageparser.h"
 #include "message.h"
-#include "messagefactory.h"
 #include "configurationcontroller.h"
 #include "databasecontroller.h"
 #include "userdata.h"
 #include "hash.h"
 
+#include <alog/logger.h>
 DEFINE_ALOGGER_MODULE_NS(Server);
 
 namespace slk {
@@ -31,12 +29,40 @@ namespace slk {
 namespace
 {
 
-void send(QTcpSocket* client, std::unique_ptr<QByteArray>&& data)
+void send(QTcpSocket* client, Message&& msg)
 {
     Q_ASSERT(client);
 
+    QByteArray payload;
+    QDataStream payloadStream(&payload, QIODevice::WriteOnly);
+
+    payloadStream << msg;
+
+    bool t;
+    QByteArray arr;
+
+    QDataStream str(msg.payload);
+
+    str >> t >> arr;
+    LOGD << t << " " << QString(arr);
+
     QDataStream clientStream(client);
-    clientStream << static_cast<uint64_t>(data->size()) << *data.get();
+    clientStream << static_cast<uint64_t>(sizeof(payload)) << payload;
+    client->flush(); //! TODO remove for packet optimization;
+}
+
+template<class... Args>
+void send(QTcpSocket* client, const Args&... args)
+{
+    Q_ASSERT(client);
+
+    QByteArray payload;
+    QDataStream payloadStream(&payload, QIODevice::WriteOnly);
+
+    ((payloadStream << args), ...);
+
+    QDataStream clientStream(client);
+    clientStream << static_cast<uint64_t>(sizeof(payload)) << payload;
     client->flush(); //! TODO remove for packet optimization;
 }
 
@@ -112,7 +138,7 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
     {
     case Messages::MessageType::PING:
     {
-        send(newClient, MessageFactory::create(Messages::MessageType::PING, QByteArray{}));
+        send(newClient, Messages::MessageType::PING, QByteArray{});
         break;
     }
     case Messages::MessageType::CONNECT_TO_ROOM:
@@ -127,7 +153,7 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
 
         if (it == impl().rooms.end())
         {
-            send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId));
+            send(newClient, Messages::MessageType::FAILED_TO_CONNECT_TO_ROOM, roomId);
             break;
         }
 
@@ -146,7 +172,8 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
                            }) != impl().rooms.end();
 
         if (found) {
-            send(newClient, MessageFactory::create(Messages::MessageType::FAILED_TO_CREATE_ROOM, QString("Room already exists")));
+            QString errorMsg = "Room already exists";
+            send(newClient, Messages::MessageType::FAILED_TO_CREATE_ROOM, errorMsg.toUtf8());
             break;
         }
 
@@ -157,10 +184,30 @@ void Server::readData(QSslSocket* const newClient, Messages::MessageType type, c
         impl().rooms.push_back(room);
 
         QObject::connect(room.get(), &Room::clientAdded, this, [](QTcpSocket* client, const QHostAddress& address, const uint32_t port) {
-            send(client, MessageFactory::create(Messages::MessageType::CONNECTED_TO_ROOM, address, port));
+            send(client, Messages::MessageType::CONNECTED_TO_ROOM, address, port);
         });
 
-        send(newClient, MessageFactory::create(Messages::MessageType::ROOM_CREATED, room->id()));
+        send(newClient, Messages::MessageType::ROOM_CREATED, room->id());
+        break;
+    }
+    case Messages::MessageType::LOG_IN:
+    {
+        QByteArray email;
+        QByteArray password;
+        MessageParser::parseData(std::move(stream), std::tie(email, password));
+
+        LOGI << "Loging in user: Username(" << QString(email) << ")";
+
+        if (!impl().dbController.logIn(email.toStdString(), createHash(password))) {
+            LOGE << "Failed to login user";
+            QString errorMsg = "Failed to login in";
+            send(newClient, Messages::MessageType::LOG_IN, false, errorMsg.toUtf8());
+
+            break;
+        }
+
+        LOGI << "User loged in successfully";
+        send(newClient, Messages::MessageType::LOG_IN, true);
         break;
     }
     case Messages::MessageType::SEND_VOICE_MSG:

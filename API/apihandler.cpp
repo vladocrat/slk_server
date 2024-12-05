@@ -32,7 +32,7 @@ ApiHandler::ApiHandler()
         responder.write(QHttpServerResponder::StatusCode::Ok);
     });
 
-    impl().server.route("/join_room/", this, []( const QString& request, QHttpServerResponder& responder) -> void {
+    impl().server.route("/join_room/", this, [](const QString& request, QHttpServerResponder& responder) -> void {
         LOGD << request;
 
         const auto response = QHttpServerResponse(QJsonObject{
@@ -84,7 +84,5 @@ bool ApiHandler::initialize()
 
     return true;
 }
-
-
 
 } //! slk

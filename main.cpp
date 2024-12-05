@@ -3,7 +3,7 @@
 #include <alog/logger.h>
 #include <alog/sinks/file.h>
 
-#include "api/apihandler.h"
+#include "API/apihandler.h"
 #include "server/server.h"
 
 DEFINE_ALOGGER_MODULE_NS(Main);

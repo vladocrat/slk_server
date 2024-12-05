@@ -11,7 +11,6 @@ add_library(server
     client.h client.cpp
     protocol.h
     messageparser.h messageparser.cpp
-    messagefactory.h messagefactory.cpp
     message.h message.cpp)
 
 target_link_libraries(server PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network database configuration alog)

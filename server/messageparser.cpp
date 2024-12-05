@@ -12,7 +12,7 @@ MessageParser::CommandResult MessageParser::parseCommand(const QByteArray& data)
     QByteArray payload;
     stream >> size;
     stream >> payload;
-    
+
     auto payloadStream = std::make_shared<QDataStream>(payload);
     uint8_t type;
     *payloadStream.get() >> type;
